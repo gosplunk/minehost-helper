@@ -12,6 +12,21 @@ from .utils import sanitize_server_name
 SERVER_JAR_HINTS = ("server", "minecraft_server", "paper", "spigot", "fabric", "forge", "purpur", "bukkit")
 MAX_SCAN_DEPTH = 5
 MAX_CANDIDATES = 80
+MAX_JAR_SEARCH_DEPTH = 5
+IGNORED_JAR_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    "backups",
+    "cache",
+    "crash-reports",
+    "logs",
+    "mods",
+    "plugins",
+    "world",
+    "world_nether",
+    "world_the_end",
+}
 
 
 def common_search_roots() -> list[Path]:
@@ -41,15 +56,65 @@ def common_search_roots() -> list[Path]:
     return unique
 
 
+def _jar_depth(server_dir: Path, jar_path: Path) -> int:
+    try:
+        return len(jar_path.relative_to(server_dir).parts) - 1
+    except ValueError:
+        return MAX_JAR_SEARCH_DEPTH + 1
+
+
+def _is_ignored_jar_path(server_dir: Path, jar_path: Path) -> bool:
+    try:
+        parts = [part.lower() for part in jar_path.relative_to(server_dir).parts[:-1]]
+    except ValueError:
+        return True
+    return any(part in IGNORED_JAR_DIRS for part in parts)
+
+
+def _jar_score(server_dir: Path, jar_path: Path) -> tuple[int, int, int, str]:
+    name = jar_path.name.lower()
+    depth = _jar_depth(server_dir, jar_path)
+    hinted = any(hint in name for hint in SERVER_JAR_HINTS)
+    exact_server = name == "server.jar"
+    try:
+        size = jar_path.stat().st_size
+    except OSError:
+        size = 0
+    # Prefer the launcher jar in the selected folder, then common server jar names
+    # found a few folders down in imported server layouts.
+    return (0 if depth == 0 else 1, 0 if exact_server else 1, 0 if hinted else 1, -size, name)
+
+
 def find_server_jar(server_dir: Path) -> Path | None:
-    jars = [path for path in server_dir.glob("*.jar") if path.is_file()]
+    server_dir = server_dir.expanduser().resolve()
+    if server_dir.is_file() and server_dir.suffix.lower() == ".jar":
+        return server_dir
+    jars = [
+        path for path in server_dir.glob("*.jar")
+        if path.is_file()
+    ]
+    if not jars:
+        jars = [
+            path for path in server_dir.glob("**/*.jar")
+            if path.is_file()
+            and _jar_depth(server_dir, path) <= MAX_JAR_SEARCH_DEPTH
+            and not _is_ignored_jar_path(server_dir, path)
+            and any(hint in path.name.lower() for hint in SERVER_JAR_HINTS)
+        ]
     if not jars:
         return None
-    hinted = [
-        jar for jar in jars
-        if any(hint in jar.name.lower() for hint in SERVER_JAR_HINTS)
-    ]
-    return sorted(hinted or jars, key=lambda path: path.stat().st_size if path.exists() else 0, reverse=True)[0]
+    return sorted(jars, key=lambda path: _jar_score(server_dir, path))[0]
+
+
+def server_jar_reference(server_dir: Path, jar_path: Path | None = None) -> str | None:
+    server_dir = server_dir.expanduser().resolve()
+    jar = jar_path or find_server_jar(server_dir)
+    if not jar:
+        return None
+    try:
+        return jar.resolve().relative_to(server_dir).as_posix()
+    except ValueError:
+        return jar.name
 
 
 def looks_like_minecraft_server(path: Path) -> bool:
@@ -110,7 +175,7 @@ def server_candidate(path: Path) -> dict[str, Any]:
         "name": sanitize_server_name(server_dir.name),
         "port": int(props.get("server-port", 25565)),
         "motd": props.get("motd", ""),
-        "jar_name": jar.name if jar else None,
+        "jar_name": server_jar_reference(server_dir, jar),
         "eula_accepted": eula_accepted,
         "world_name": world_name,
         "world_exists": world_exists,

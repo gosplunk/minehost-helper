@@ -270,18 +270,25 @@ def browse_server_folder() -> dict[str, Any]:
 @app.post("/api/servers/discovery/path")
 def manual_server_folder(data: ServerDiscoveryPathRequest) -> dict[str, Any]:
     try:
-        return _manual_discovery_candidate(Path(data.path).expanduser().resolve())
+        selected = Path(data.path.strip().strip('"')).expanduser().resolve()
+        return _manual_discovery_candidate(selected)
     except Exception as exc:
         raise _api_error(exc)
 
 
 def _manual_discovery_candidate(selected: Path) -> dict[str, Any]:
-    if not selected.exists() or not selected.is_dir():
+    if not selected.exists():
         raise ValueError("That folder was not found. Choose the main Minecraft server folder.")
+    if selected.is_file() and selected.suffix.lower() == ".jar":
+        selected = selected.parent
+    if not selected.is_dir():
+        raise ValueError("That path is not a folder or Minecraft server .jar file. Choose the main Minecraft server folder.")
     if not (selected / "server.properties").exists():
         raise ValueError("That folder does not contain server.properties. Choose the main Minecraft server folder, not the world folder.")
     if not find_server_jar(selected):
-        raise ValueError("That folder does not contain a Minecraft server .jar file. Choose the folder with server.properties and the server jar.")
+        jar_like = sorted(path.name for path in selected.glob("*") if path.is_file() and "jar" in path.name.lower())
+        suffix = f" Files with 'jar' in the name here: {', '.join(jar_like[:5])}." if jar_like else ""
+        raise ValueError(f"That folder does not contain a Minecraft server .jar file. Choose the folder with server.properties and the server jar, or paste the full path to the .jar file.{suffix}")
     candidate = server_candidate(selected)
     existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
     return {**candidate, "already_added": candidate["path"].lower() in existing_paths, "manual": True}

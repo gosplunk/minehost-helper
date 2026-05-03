@@ -142,7 +142,7 @@ If you already have a Minecraft Java server folder on this PC:
 2. Choose `Import existing Minecraft server`.
 3. MineHost Helper scans common folders automatically.
 4. If MineHost Helper does not find it, click `Browse for Server Folder`.
-5. Select the folder that contains `server.properties` and the server `.jar`, or paste that folder path into the manual path box.
+5. Select the folder that contains `server.properties`, or paste the full path to the server `.jar` into the manual path box.
 6. Choose Add to MineHost on the server you want.
 7. Stop that server if it is already running somewhere else.
 8. Start it from the Dashboard.

@@ -23,7 +23,7 @@ from .java_manager import get_java_path, install_temurin_jre, required_java_vers
 from .minecraft_downloader import download_server_jar
 from .models import ServerAdoptRequest, ServerCreateRequest
 from .properties_manager import properties_from_create_request, read_properties, write_properties
-from .server_discovery import find_server_jar, server_candidate
+from .server_discovery import find_server_jar, server_candidate, server_jar_reference
 from .storage import servers_store
 from .utils import ensure_child_path, slugify_name
 from .world_map import scan_dimension
@@ -327,7 +327,7 @@ class ServerManager:
                 "ram_mb": data.ram_mb,
                 "port": int(properties.get("server-port", candidate["port"])),
                 "path": str(server_dir),
-                "jar_name": jar.name,
+                "jar_name": server_jar_reference(server_dir, jar) or jar.name,
                 "external": True,
                 "status": "stopped",
                 "created_at": now,
@@ -449,7 +449,7 @@ class ServerManager:
                 f"-Xmx{ram_mb}M",
                 f"-Xms{ram_mb}M",
                 "-jar",
-                jar_path.name,
+                jar_path.resolve().relative_to(server_dir).as_posix(),
                 "nogui",
             ]
             creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0

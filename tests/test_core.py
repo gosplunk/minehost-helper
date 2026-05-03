@@ -393,6 +393,43 @@ def test_manual_path_existing_server_folder_returns_candidate(tmp_path: Path, mo
     assert candidate["port"] == 25573
 
 
+def test_manual_path_accepts_direct_server_jar_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import main
+    from backend.models import ServerDiscoveryPathRequest
+
+    write_properties(tmp_path, {"server-port": 25574}, make_backup=False)
+    jar_path = tmp_path / "minecraft_server.1.21.8.jar"
+    jar_path.write_text("fake jar", encoding="utf-8")
+
+    class FakeServerManager:
+        def list_servers(self) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(main, "server_manager", FakeServerManager())
+
+    candidate = main.manual_server_folder(ServerDiscoveryPathRequest(path=str(jar_path)))
+
+    assert candidate["manual"] is True
+    assert candidate["jar_name"] == "minecraft_server.1.21.8.jar"
+    assert candidate["port"] == 25574
+
+
+def test_discovery_finds_nested_server_jar_layout(tmp_path: Path) -> None:
+    from backend.server_discovery import find_server_jar, server_candidate
+
+    write_properties(tmp_path, {"server-port": 25575}, make_backup=False)
+    nested = tmp_path / "libraries" / "net" / "minecraftforge" / "forge" / "1.20.1"
+    nested.mkdir(parents=True)
+    (nested / "forge-1.20.1-server.jar").write_text("fake jar", encoding="utf-8")
+
+    jar = find_server_jar(tmp_path)
+    candidate = server_candidate(tmp_path)
+
+    assert jar is not None
+    assert jar.name == "forge-1.20.1-server.jar"
+    assert candidate["jar_name"] == "libraries/net/minecraftforge/forge/1.20.1/forge-1.20.1-server.jar"
+
+
 def test_adopt_existing_server_records_external_path_and_jar(tmp_path: Path) -> None:
     from backend.models import ServerAdoptRequest
     from backend.server_manager import ServerManager

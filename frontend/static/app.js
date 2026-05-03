@@ -523,10 +523,10 @@ function renderImportSetup() {
             <button onclick="browseExistingServerFolder()">Browse for Server Folder</button>
             <button onclick="chooseSetupMode('guided')">Create New Instead</button>
           </div>
-          <p class="callout info">Can’t find it? Click Browse and choose the folder that contains <code>server.properties</code> and your server <code>.jar</code>. Do not choose the world folder by itself.</p>
+          <p class="callout info">Can’t find it? Click Browse and choose the folder that contains <code>server.properties</code>. If the jar is hard to find, paste the full path to the <code>.jar</code> file below.</p>
           <div class="manual-path-card">
-            <label class="field">${fieldLabel("Or paste the server folder path", "Open the folder in File Explorer, click the address bar, copy the path, then paste it here.")}<input id="manual-server-path" placeholder="C:\\Users\\YourName\\Desktop\\Minecraft Server"></label>
-            <button onclick="useManualServerPath()">Use This Folder</button>
+            <label class="field">${fieldLabel("Or paste the server folder or jar path", "Open the folder or jar in File Explorer, click the address bar, copy the path, then paste it here.")}<input id="manual-server-path" placeholder="C:\\Users\\YourName\\Desktop\\Minecraft Server\\server.jar"></label>
+            <button onclick="useManualServerPath()">Use This Path</button>
           </div>
           <div id="discovery-results" class="stack" style="margin-top:16px"></div>
         </div>
@@ -817,7 +817,7 @@ function renderDiscoveryResults() {
       <p class="callout">No existing Minecraft Java server folders were found in common locations.</p>
       <div class="empty-state">
         <h3>Know where your server is?</h3>
-        <p class="muted">Click Browse for Server Folder and select the folder that has <code>server.properties</code> and a Minecraft server <code>.jar</code>.</p>
+        <p class="muted">Click Browse for Server Folder and select the folder that has <code>server.properties</code>, or paste the full path to the server <code>.jar</code>.</p>
         <button class="primary" onclick="browseExistingServerFolder()">Browse for Server Folder</button>
       </div>`;
     return;
