@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import app_settings, auth_manager, backup_scheduler, discord_webhook, firewall, java_manager, minecraft_downloader, networking, update_checker
-from .server_discovery import scan_existing_servers
+from .server_discovery import browse_for_server_folder, find_server_jar, server_candidate, scan_existing_servers
 from .config import APP_NAME, HOST, PORT, STATIC_DIR, ensure_directories
 from .models import (
     AdminCommandRequest,
@@ -251,6 +251,23 @@ def discover_servers() -> list[dict[str, Any]]:
             {**candidate, "already_added": candidate["path"].lower() in existing_paths}
             for candidate in scan_existing_servers()
         ]
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.post("/api/servers/discovery/browse")
+def browse_server_folder() -> dict[str, Any]:
+    try:
+        selected = browse_for_server_folder()
+        if selected is None:
+            return {"cancelled": True}
+        if not (selected / "server.properties").exists():
+            raise ValueError("That folder does not contain server.properties. Choose the main Minecraft server folder, not the world folder.")
+        if not find_server_jar(selected):
+            raise ValueError("That folder does not contain a Minecraft server .jar file. Choose the folder with server.properties and the server jar.")
+        candidate = server_candidate(selected)
+        existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
+        return {**candidate, "already_added": candidate["path"].lower() in existing_paths, "manual": True}
     except Exception as exc:
         raise _api_error(exc)
 

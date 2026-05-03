@@ -352,6 +352,27 @@ def test_discovery_finds_existing_server_folder(tmp_path: Path) -> None:
     assert candidate["world_exists"] is True
 
 
+def test_manual_browse_existing_server_folder_returns_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import main
+
+    write_properties(tmp_path, {"server-port": 25572, "level-name": "family-world"}, make_backup=False)
+    (tmp_path / "server.jar").write_text("fake jar", encoding="utf-8")
+
+    class FakeServerManager:
+        def list_servers(self) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(main, "server_manager", FakeServerManager())
+    monkeypatch.setattr(main, "browse_for_server_folder", lambda: tmp_path)
+
+    candidate = main.browse_server_folder()
+
+    assert candidate["manual"] is True
+    assert candidate["already_added"] is False
+    assert candidate["path"] == str(tmp_path.resolve())
+    assert candidate["port"] == 25572
+
+
 def test_adopt_existing_server_records_external_path_and_jar(tmp_path: Path) -> None:
     from backend.models import ServerAdoptRequest
     from backend.server_manager import ServerManager

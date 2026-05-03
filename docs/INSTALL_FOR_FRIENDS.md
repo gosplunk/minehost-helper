@@ -190,3 +190,7 @@ People on your Wi-Fi can usually use the local address. People outside your hous
 **Should I expose the MineHost Helper web page to the internet?**
 
 No. The manager web page is for your PC only.
+
+**What if MineHost Helper cannot find my old Minecraft server?**
+
+Open Get Started, choose `Import existing Minecraft server`, then click `Browse for Server Folder`. Select the folder that contains `server.properties` and the Minecraft server `.jar`. Do not select only the world folder.

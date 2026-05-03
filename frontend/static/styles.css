@@ -1212,6 +1212,23 @@ code {
   margin: 6px 0 0;
 }
 
+.empty-state {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 18px;
+  border: 1px dashed color-mix(in srgb, var(--grass) 44%, var(--line));
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, var(--success-bg), transparent),
+    var(--surface);
+}
+
+.empty-state h3,
+.empty-state p {
+  margin: 0;
+}
+
 .callout {
   color: var(--warning-ink);
   background:

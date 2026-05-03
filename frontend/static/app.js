@@ -520,8 +520,10 @@ function renderImportSetup() {
           <p class="muted">If a server is found, choose Add to MineHost. Stop any old server window first so MineHost Helper can control it cleanly.</p>
           <div class="actions">
             <button class="primary" onclick="scanExistingServers()">Search Again</button>
+            <button onclick="browseExistingServerFolder()">Browse for Server Folder</button>
             <button onclick="chooseSetupMode('guided')">Create New Instead</button>
           </div>
+          <p class="callout info">Can’t find it? Click Browse and choose the folder that contains <code>server.properties</code> and your server <code>.jar</code>. Do not choose the world folder by itself.</p>
           <div id="discovery-results" class="stack" style="margin-top:16px"></div>
         </div>
         <div class="card">
@@ -807,7 +809,13 @@ function renderDiscoveryResults() {
   const target = $("discovery-results");
   if (!target) return;
   if (!state.discoveredServers.length) {
-    target.innerHTML = `<p class="callout">No existing Minecraft Java server folders were found in common locations. You can still create a new guided setup instead.</p>`;
+    target.innerHTML = `
+      <p class="callout">No existing Minecraft Java server folders were found in common locations.</p>
+      <div class="empty-state">
+        <h3>Know where your server is?</h3>
+        <p class="muted">Click Browse for Server Folder and select the folder that has <code>server.properties</code> and a Minecraft server <code>.jar</code>.</p>
+        <button class="primary" onclick="browseExistingServerFolder()">Browse for Server Folder</button>
+      </div>`;
     return;
   }
   target.innerHTML = state.discoveredServers.map((server, index) => `
@@ -816,10 +824,42 @@ function renderDiscoveryResults() {
         <strong>${escapeHtml(server.name)}</strong>
         <p class="muted">${escapeHtml(server.path)}</p>
         <p class="muted">Jar: ${escapeHtml(server.jar_name || "Unknown")} | Port: ${escapeHtml(server.port)} | EULA: ${server.eula_accepted ? "accepted" : "not accepted yet"}</p>
+        ${server.manual ? `<p class="pill warning">Selected with Browse</p>` : ""}
       </div>
       <button ${server.already_added ? "disabled" : ""} onclick="adoptExistingServer(${index})">${server.already_added ? "Already Added" : "Add to MineHost"}</button>
     </div>
   `).join("");
+}
+
+async function browseExistingServerFolder() {
+  const target = $("discovery-results");
+  if (target) {
+    target.insertAdjacentHTML("afterbegin", `<p id="browse-folder-status" class="callout info"><span class="spinner inline" aria-hidden="true"></span> Opening Windows folder picker. It may appear behind your browser.</p>`);
+  }
+  try {
+    const candidate = await api("/api/servers/discovery/browse", { method: "POST", body: JSON.stringify({}) });
+    $("browse-folder-status")?.remove();
+    if (candidate.cancelled) {
+      toast("Folder selection cancelled.");
+      renderDiscoveryResults();
+      return;
+    }
+    const key = String(candidate.path || "").toLowerCase();
+    const existingIndex = state.discoveredServers.findIndex((item) => String(item.path || "").toLowerCase() === key);
+    if (existingIndex >= 0) {
+      state.discoveredServers[existingIndex] = candidate;
+    } else {
+      state.discoveredServers.unshift(candidate);
+    }
+    renderDiscoveryResults();
+    toast("Server folder selected. Click Add to MineHost to import it.");
+  } catch (error) {
+    $("browse-folder-status")?.remove();
+    if (target) {
+      target.insertAdjacentHTML("afterbegin", `<p class="callout danger">${escapeHtml(error.message)}</p>`);
+    }
+    toast(error.message, "error");
+  }
 }
 
 async function adoptExistingServer(index) {
