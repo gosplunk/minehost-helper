@@ -5,6 +5,8 @@ const state = {
   dashboard: null,
   consoleTimer: null,
   dashboardTimer: null,
+  quickDrawerTimer: null,
+  quickDrawerCollapsed: localStorage.getItem("quickDrawerCollapsed") === "true",
   theme: document.documentElement.dataset.theme || "light",
   discoveredServers: [],
   filePath: "",
@@ -167,6 +169,17 @@ function statusPill(status) {
   return `<span class="pill ${status || "stopped"}">${status || "stopped"}</span>`;
 }
 
+function formatUptime(seconds) {
+  const total = Math.max(0, Number(seconds) || 0);
+  if (!total) return "Not running";
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${Math.max(1, minutes)}m`;
+}
+
 function quickStat(label, value) {
   return `<div class="quick-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
@@ -266,6 +279,72 @@ function renderServerSelect() {
   });
 }
 
+function renderQuickDrawer() {
+  const drawer = $("quick-drawer");
+  if (!drawer) return;
+  const server = selectedServer();
+  if (!server) {
+    drawer.className = "quick-drawer empty";
+    drawer.innerHTML = `
+      <button class="drawer-handle" type="button" onclick="toggleQuickDrawer()" aria-label="Toggle quick drawer"></button>
+      <div class="drawer-content">
+        <div>
+          <span class="drawer-label">Quick Controls</span>
+          <strong>No server yet</strong>
+        </div>
+        <button class="primary" onclick="go('setup')">Create or Import Server</button>
+      </div>`;
+    return;
+  }
+  const dash = state.dashboard || {};
+  const process = dash.process || {};
+  const players = dash.players || {};
+  const onlineCount = Array.isArray(players.online) ? players.online.length : 0;
+  const running = server.status === "running";
+  const busy = ["starting", "stopping"].includes(server.status) || server.operation?.active;
+  drawer.className = `quick-drawer${state.quickDrawerCollapsed ? " collapsed" : ""}`;
+  drawer.innerHTML = `
+    <button class="drawer-handle" type="button" onclick="toggleQuickDrawer()" aria-label="${state.quickDrawerCollapsed ? "Expand" : "Collapse"} quick drawer"></button>
+    <div class="drawer-content">
+      <div class="drawer-status">
+        <span class="drawer-label">Server Status</span>
+        ${statusPill(server.status)}
+      </div>
+      <div class="drawer-metric">
+        <span>User Count</span>
+        <strong>${onlineCount} online</strong>
+      </div>
+      <div class="drawer-metric">
+        <span>Server Uptime</span>
+        <strong>${formatUptime(process.uptime_seconds)}</strong>
+      </div>
+      <div class="drawer-actions">
+        <button type="button" onclick="serverAction('restart')" ${running && !busy ? "" : "disabled"}>Restart Server</button>
+        <button class="primary" type="button" onclick="setTimeDay()" ${running ? "" : "disabled"}>Set Day</button>
+      </div>
+    </div>`;
+}
+
+function toggleQuickDrawer() {
+  state.quickDrawerCollapsed = !state.quickDrawerCollapsed;
+  localStorage.setItem("quickDrawerCollapsed", String(state.quickDrawerCollapsed));
+  renderQuickDrawer();
+}
+
+function startQuickDrawerPolling() {
+  if (state.quickDrawerTimer) return;
+  state.quickDrawerTimer = setInterval(async () => {
+    if (!$("quick-drawer")) return;
+    try {
+      await refreshData();
+      renderQuickDrawer();
+      if (state.page === "dashboard") renderDashboard();
+    } catch {
+      renderQuickDrawer();
+    }
+  }, 5000);
+}
+
 async function runAction(label, fn) {
   try {
     await fn();
@@ -306,7 +385,7 @@ function renderDashboard() {
         <div class="quick-stats">
           ${quickStat("RAM", `${server.ram_mb} MB`)}
           ${quickStat("Port", server.port)}
-          ${quickStat("Uptime", process.uptime_seconds ? `${Math.floor(process.uptime_seconds / 60)} min` : "Not running")}
+          ${quickStat("Uptime", formatUptime(process.uptime_seconds))}
         </div>
         <div class="actions">
           <button class="primary" ${running || busy || portBlocked ? "disabled" : ""} onclick="serverAction('start')">Start Server</button>
@@ -1239,6 +1318,10 @@ async function runAdminCommand(encodedPayload) {
   });
 }
 
+async function setTimeDay() {
+  await runAdminCommand(encodeURIComponent(JSON.stringify({ action: "time-day" })));
+}
+
 async function runPlayerAdminCommand(action) {
   const player = $("admin-player").value.trim();
   const reason = $("admin-reason").value.trim();
@@ -1844,6 +1927,8 @@ async function render() {
     $("page-title").textContent = titles[state.page];
     document.querySelectorAll(".page").forEach((node) => node.classList.toggle("hidden", node.id !== state.page));
     document.querySelectorAll("nav a").forEach((node) => node.classList.toggle("active", node.dataset.page === state.page));
+    renderQuickDrawer();
+    startQuickDrawerPolling();
     if (state.page === "dashboard") {
       renderDashboard();
       startDashboardPolling();
@@ -1890,6 +1975,7 @@ function startDashboardPolling() {
     }
     try {
       await refreshData();
+      renderQuickDrawer();
       renderDashboard();
       const current = selectedServer();
       if (!current || (!["starting", "running", "stopping"].includes(current.status) && !current.operation?.active)) {

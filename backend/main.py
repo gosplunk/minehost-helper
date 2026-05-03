@@ -290,6 +290,7 @@ def dashboard(server_id: str | None = None) -> dict[str, Any]:
         "server_address": f"{public_ip or 'PUBLIC_IP'}:{port}",
         "local_address": f"{local_ip or 'LOCAL_IP'}:{port}",
         "recent_console": server_manager.console_lines(selected["id"], 20) if selected else [],
+        "players": server_manager.player_lists(selected["id"]) if selected else {"online": []},
     }
 
 

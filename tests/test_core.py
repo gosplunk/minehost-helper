@@ -138,6 +138,9 @@ def test_dashboard_ignores_stale_selected_server(monkeypatch: pytest.MonkeyPatch
         def check_port(self, server_id: str) -> dict[str, object]:
             return {"port": 25565, "available": True}
 
+        def player_lists(self, server_id: str) -> dict[str, object]:
+            return {"online": []}
+
     monkeypatch.setattr(main, "server_manager", FakeServerManager())
     monkeypatch.setattr(main.networking, "get_local_ip", lambda: "192.168.1.50")
     monkeypatch.setattr(main.networking, "get_public_ip", lambda: None)

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import socket
 import json
+import time
 import urllib.request
 from typing import Any
 
 from .utils import validate_port
 
 PUBLIC_PORT_TEST_URL = "https://api.networktools.dev/v1/port-test?port={port}"
+_PUBLIC_IP_CACHE: dict[str, Any] = {"value": None, "expires_at": 0.0}
 
 
 def get_local_ip() -> str | None:
@@ -23,10 +25,15 @@ def get_local_ip() -> str | None:
 
 
 def get_public_ip() -> str | None:
+    now = time.time()
+    if _PUBLIC_IP_CACHE["value"] and now < float(_PUBLIC_IP_CACHE["expires_at"]):
+        return str(_PUBLIC_IP_CACHE["value"])
     for url in ("https://api.ipify.org", "https://ifconfig.me/ip"):
         try:
             with urllib.request.urlopen(url, timeout=4) as response:
-                return response.read().decode("utf-8").strip()
+                public_ip = response.read().decode("utf-8").strip()
+                _PUBLIC_IP_CACHE.update({"value": public_ip, "expires_at": now + 600})
+                return public_ip
         except Exception:
             continue
     return None
