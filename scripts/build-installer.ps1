@@ -29,6 +29,7 @@ try {
 
 New-Item -ItemType Directory -Path ".\dist-installer" -Force | Out-Null
 Copy-Item (Join-Path $Stage "dist\MineHostHelperSetup.exe") ".\dist-installer\MineHostHelperSetup.exe" -Force
+& ".\scripts\sign-windows.ps1" -Path ".\dist-installer\MineHostHelperSetup.exe"
 
 Write-Host ""
 Write-Host "Built installer: $Root\dist-installer\MineHostHelperSetup.exe" -ForegroundColor Green

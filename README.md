@@ -8,6 +8,8 @@
 
 Double click the downloaded file, choose where to install MineHost Helper, create a local web login, then launch it from the Start Menu or Desktop shortcut. Setup checks for Java 25+ when it opens. If a compatible bundled or system Java is already available, setup skips the Java download option; otherwise it prepares the bundled Eclipse Temurin Java runtime during install by default so first server launch is less surprising. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds, backups, settings, and the existing web login, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
 
+If Windows Defender blocks a release with `WinError 225`, do not disable Defender. See [Windows Defender And SmartScreen](docs/WINDOWS_DEFENDER.md). The fix is to submit the exact flagged file to Microsoft for false-positive review and sign future releases.
+
 If the download link does not work, open the Releases page and download the newest `MineHostHelperSetup.exe` asset.
 
 MineHost Helper is a Windows-first local web app for running a Minecraft Java server without command-line work after installation. It installs or downloads what it needs, opens a browser UI automatically, creates servers, writes `server.properties`, starts and stops Minecraft, shows logs, creates backups, and guides users through Windows Firewall and router forwarding.
@@ -51,7 +53,7 @@ dist-installer\MineHostHelperSetup.exe
 
 The setup app lets the user choose the install folder, create the local web UI username/password, creates shortcuts, registers an uninstaller in Windows Apps & Features, and installs `Uninstall MineHost Helper.exe` into the install folder. If MineHost Helper is already installed, setup offers Update / Repair or Clean Install. Update / Repair detects the existing web login and keeps the same username/password hash by default.
 
-Unsigned EXEs/installers may trigger Windows SmartScreen. That is expected for early builds; code signing can be added later.
+Unsigned EXEs/installers may trigger Windows SmartScreen or Defender false positives. That is expected for early builds; public-friendly releases should be Authenticode signed. Starting with `v0.1.21`, PyInstaller UPX compression is disabled to reduce false positives.
 
 ## Run From Source
 

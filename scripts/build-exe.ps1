@@ -31,6 +31,7 @@ try {
 
 New-Item -ItemType Directory -Path ".\dist" -Force | Out-Null
 Copy-Item (Join-Path $Stage "dist\MineHostHelper.exe") ".\dist\MineHostHelper.exe" -Force
+& ".\scripts\sign-windows.ps1" -Path ".\dist\MineHostHelper.exe"
 
 Write-Host ""
 Write-Host "Built: $Root\dist\MineHostHelper.exe" -ForegroundColor Green

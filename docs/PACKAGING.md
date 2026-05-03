@@ -26,6 +26,8 @@ The script builds `dist\MineHostHelper.exe`, builds `Uninstall MineHost Helper.e
 dist-installer\MineHostHelperSetup.exe
 ```
 
+PyInstaller UPX compression is disabled in all specs. Do not re-enable it for public releases; compressed self-extracting binaries are more likely to trigger antivirus false positives.
+
 Installer behavior:
 
 - Lets the user choose the install folder.
@@ -107,24 +109,31 @@ Use Inno Setup if you want a more standard installer experience, richer wizard p
 
 ## Unsigned Installer And SmartScreen
 
-Unsigned installers or launchers may trigger Windows SmartScreen, especially for new apps with low reputation.
+Unsigned installers or launchers may trigger Windows SmartScreen or Defender false positives, especially for new apps with low reputation.
 
 Users may see:
 
 - `Windows protected your PC`
 - `Unknown publisher`
+- `WinError 225`
+- `Operation did not complete successfully because the file contains a virus or potentially unwanted software`
 
-For trusted private testing, users can click `More info`, then `Run anyway`. Do not ask strangers to bypass SmartScreen for public distribution.
+For trusted private testing, SmartScreen may allow `More info`, then `Run anyway`. Defender malware detections are different: do not ask non-technical users to bypass or disable Defender. Submit the exact flagged file to Microsoft for review and wait for the verdict.
+
+See [WINDOWS_DEFENDER.md](WINDOWS_DEFENDER.md).
 
 ## Code Signing
 
-Code signing improves trust and reduces SmartScreen friction over time, but it is not required for friends/testing.
+Code signing improves trust and reduces SmartScreen friction over time. It is strongly recommended before public distribution to non-technical users.
 
 Options:
 
 - Standard code signing certificate.
 - Extended Validation certificate for stronger initial reputation, usually more expensive.
+- Azure Trusted Signing for non-Store distribution.
 - Sign final `.exe` launchers and installers during release builds.
+
+The build scripts call `scripts/sign-windows.ps1` automatically. Signing is skipped unless a certificate is configured through `WINDOWS_SIGN_CERT_SHA1` or `WINDOWS_SIGN_PFX`.
 
 ## Release Checklist
 
@@ -143,6 +152,8 @@ Before publishing a GitHub release:
 - Verify Help page update check and problem explainer load.
 - Verify uninstaller appears in Apps & Features.
 - Verify uninstall removes shortcuts and startup entry.
+- Submit any Defender false positive to Microsoft before sharing with non-technical users.
+- Sign release artifacts if a certificate is available.
 - Document SmartScreen expectations in release notes.
 
 ## Future Packaging Improvements
