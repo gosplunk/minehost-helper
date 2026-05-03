@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -12,7 +13,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 APP_NAME = "MineHost Helper"
-APP_VERSION = "0.1.10"
+APP_VERSION = "0.1.11"
 PUBLISHER = "MineHost Helper"
 EXE_NAME = "MineHostHelper.exe"
 UNINSTALL_EXE_NAME = "Uninstall MineHost Helper.exe"
@@ -122,6 +123,58 @@ def stop_running_app() -> None:
         check=False,
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
+
+
+def parse_java_feature_version(version_text: str) -> int | None:
+    match = re.search(r'version "([^"]+)"', version_text)
+    if not match:
+        return None
+    raw = match.group(1)
+    if raw.startswith("1."):
+        parts = raw.split(".")
+        return int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else None
+    feature = raw.split(".", 1)[0]
+    return int(feature) if feature.isdigit() else None
+
+
+def java_feature_version(java_path: Path) -> int | None:
+    try:
+        result = subprocess.run(
+            [str(java_path), "-version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    except Exception:
+        return None
+    return parse_java_feature_version(result.stderr or result.stdout or "")
+
+
+def java_readiness(target_dir: Path, include_target_runtimes: bool = True) -> tuple[bool, str]:
+    target_dir = target_dir.expanduser()
+    candidates: list[tuple[str, Path]] = []
+    if include_target_runtimes:
+        candidates.extend(("bundled", path) for path in sorted((target_dir / "runtimes" / "java").glob("**/bin/java.exe")))
+    system_java = shutil.which("java")
+    if system_java:
+        candidates.append(("system", Path(system_java)))
+
+    checked: list[str] = []
+    for source, java_path in candidates:
+        feature = java_feature_version(java_path)
+        if feature is None:
+            checked.append(f"{source} Java at {java_path} could not be read")
+            continue
+        if feature >= JAVA_FEATURE_VERSION:
+            label = "Bundled" if source == "bundled" else "System"
+            return True, f"{label} Java {feature} is already available. Setup will skip Java download."
+        checked.append(f"{source} Java {feature} is too old")
+
+    if checked:
+        return False, f"Java {JAVA_FEATURE_VERSION}+ was not found ({'; '.join(checked)}). Setup will prepare Temurin Java."
+    return False, f"Java {JAVA_FEATURE_VERSION}+ was not found. Setup will prepare Temurin Java."
 
 
 def prepare_java_runtime(app_exe: Path) -> tuple[bool, str]:
@@ -320,11 +373,14 @@ class InstallerUi:
         self.launch_var = tk.BooleanVar(value=True)
         self.prepare_java_var = tk.BooleanVar(value=True)
         self.status_var = tk.StringVar(value="")
+        self.java_status_var = tk.StringVar(value="")
         self.installed_dir = read_installed_dir()
         self.installed_version = read_installed_version()
         self.install_dir_var = tk.StringVar(value=str(self.installed_dir or default_install_dir()))
         self.install_buttons: list[tk.Button] = []
+        self.prepare_java_checkbox: tk.Checkbutton | None = None
         self._build()
+        self._refresh_java_prepare_state()
         self._fit_window_to_content()
 
     def _fit_window_to_content(self) -> None:
@@ -381,7 +437,10 @@ class InstallerUi:
         tk.Label(path_frame, text="Install location", bg="#fffdf6", fg="#243023", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         path_row = tk.Frame(path_frame, bg="#fffdf6")
         path_row.pack(fill="x", pady=(6, 0))
-        tk.Entry(path_row, textvariable=self.install_dir_var, font=("Segoe UI", 10)).pack(side="left", fill="x", expand=True)
+        install_dir_entry = tk.Entry(path_row, textvariable=self.install_dir_var, font=("Segoe UI", 10))
+        install_dir_entry.pack(side="left", fill="x", expand=True)
+        install_dir_entry.bind("<FocusOut>", lambda _event: self._refresh_java_prepare_state())
+        install_dir_entry.bind("<Return>", lambda _event: self._refresh_java_prepare_state())
         tk.Button(
             path_row,
             text="Browse...",
@@ -414,7 +473,7 @@ class InstallerUi:
             font=("Segoe UI", 10),
         ).pack(anchor="w", pady=(4, 16))
 
-        tk.Checkbutton(
+        self.prepare_java_checkbox = tk.Checkbutton(
             frame,
             text=f"Prepare bundled Temurin Java {JAVA_FEATURE_VERSION} now (recommended)",
             variable=self.prepare_java_var,
@@ -422,7 +481,18 @@ class InstallerUi:
             fg="#243023",
             activebackground="#fffdf6",
             font=("Segoe UI", 10),
-        ).pack(anchor="w", pady=(0, 16))
+        )
+        self.prepare_java_checkbox.pack(anchor="w", pady=(0, 6))
+
+        tk.Label(
+            frame,
+            textvariable=self.java_status_var,
+            font=("Segoe UI", 9),
+            bg="#fffdf6",
+            fg="#687466",
+            wraplength=620,
+            justify="left",
+        ).pack(fill="x", pady=(0, 16))
 
         tk.Label(
             frame,
@@ -505,6 +575,23 @@ class InstallerUi:
             if path.name.lower() not in {"minehosthelper", "minehost helper"}:
                 path = path / "MineHostHelper"
             self.install_dir_var.set(str(path))
+            self._refresh_java_prepare_state()
+
+    def _refresh_java_prepare_state(self) -> None:
+        try:
+            ready, message = java_readiness(Path(self.install_dir_var.get()))
+        except Exception as exc:
+            ready = False
+            message = f"Java check could not run yet: {exc}"
+        self.java_status_var.set(message)
+        if ready:
+            self.prepare_java_var.set(False)
+            if self.prepare_java_checkbox:
+                self.prepare_java_checkbox.configure(state="disabled")
+        else:
+            self.prepare_java_var.set(True)
+            if self.prepare_java_checkbox:
+                self.prepare_java_checkbox.configure(state="normal")
 
     def _install_clicked(self, clean_existing: bool) -> None:
         try:
@@ -522,18 +609,22 @@ class InstallerUi:
                         button.configure(state="normal")
                     return
             self.status_var.set(
-                "Installing MineHost Helper. If this is the first install, Java will be checked and downloaded now."
+                "Installing MineHost Helper. Dependencies will be skipped when they are already ready."
             )
             self.root.update_idletasks()
+            java_ready, _java_message = java_readiness(Path(self.install_dir_var.get()), include_target_runtimes=not clean_existing)
+            prepare_java_requested = self.prepare_java_var.get() and not java_ready
+            if clean_existing and not java_ready:
+                prepare_java_requested = True
             result = install(
                 target_dir=Path(self.install_dir_var.get()),
                 create_desktop_shortcut=self.desktop_var.get(),
                 launch_after=self.launch_var.get(),
                 clean_existing=clean_existing,
-                prepare_java=self.prepare_java_var.get(),
+                prepare_java=prepare_java_requested,
             )
             action = "clean installed" if clean_existing else "updated" if self.installed_dir else "installed"
-            if result.java_ready or not self.prepare_java_var.get():
+            if result.java_ready or not prepare_java_requested:
                 messagebox.showinfo(APP_NAME, f"{APP_NAME} was {action}:\n\n{result.app_path}\n\n{result.java_message}")
             else:
                 messagebox.showwarning(

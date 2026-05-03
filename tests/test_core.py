@@ -64,6 +64,14 @@ def test_java_class_major_mapping() -> None:
     assert class_major_to_java_version(69) == 25
 
 
+def test_installer_parses_java_feature_versions() -> None:
+    from installer.bootstrap_installer import parse_java_feature_version
+
+    assert parse_java_feature_version('openjdk version "25.0.3" 2026-04-15') == 25
+    assert parse_java_feature_version('java version "1.8.0_421"') == 8
+    assert parse_java_feature_version("not a java version") is None
+
+
 def test_required_java_version_for_minecraft_bundler_jar(tmp_path: Path) -> None:
     jar_path = tmp_path / "server.jar"
     header = b"\xca\xfe\xba\xbe" + (0).to_bytes(2, "big") + (69).to_bytes(2, "big")

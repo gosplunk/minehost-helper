@@ -4,7 +4,7 @@
 
 **Download the installer:** [MineHostHelperSetup.exe](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe)
 
-Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. Setup checks and prepares the bundled Eclipse Temurin Java runtime during install by default so first server launch is less surprising. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds and backups, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
+Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. Setup checks for Java 25+ when it opens. If a compatible bundled or system Java is already available, setup skips the Java download option; otherwise it prepares the bundled Eclipse Temurin Java runtime during install by default so first server launch is less surprising. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds and backups, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
 
 If you are viewing a private GitHub repo, you must be signed into a GitHub account that has access to this repository before the download link will work.
 
@@ -47,7 +47,8 @@ If Python is missing, the launcher explains the problem and can ask to install P
 - Creates `.venv` in source mode and installs Python dependencies from `requirements.txt`.
 - Starts the FastAPI backend on `127.0.0.1`.
 - Opens the local web UI.
-- Checks/downloads a safe Eclipse Temurin OpenJDK runtime during install by default. Get Started can retry later if the network blocks the Java download.
+- Checks for Java 25+ during setup launch and skips Java download when compatible Java already exists.
+- Downloads a safe Eclipse Temurin OpenJDK runtime during install only when Java 25+ is missing. Get Started can retry later if the network blocks the Java download.
 - Downloads Minecraft server jars from Mojang's official version manifest.
 - Keeps app data local to the install/source folder.
 
