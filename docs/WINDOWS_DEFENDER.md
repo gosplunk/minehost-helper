@@ -22,6 +22,24 @@ Steps:
 
 This is not as polished as an installer, but it is safer than asking users to bypass antivirus.
 
+## Friend Mode Self-Signed Installer
+
+For a small group of friends who personally trust the builder, MineHost Helper can create a self-signed Friend Mode certificate and sign the installer:
+
+```powershell
+.\scripts\build-friend-installer.ps1 -PublisherName "Your Name MineHost Helper"
+```
+
+This creates:
+
+```text
+dist-friend\MineHostHelper-FriendSigned.zip
+```
+
+Friends must run `Install MineHost Helper Friend Publisher Certificate.bat` first. This installs the public certificate into Windows `Trusted People`, then they can run `MineHostHelperSetup-FriendSigned.exe`.
+
+This is not a public-trust solution. It only works for friends who explicitly trust that certificate.
+
 ## Why It Happens
 
 Early MineHost Helper builds are produced with PyInstaller. PyInstaller creates self-extracting executables that bundle Python, app code, and assets. Unsigned self-extracting binaries with low download reputation are common false-positive targets.

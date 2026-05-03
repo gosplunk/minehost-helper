@@ -67,6 +67,8 @@ The older installer path remains available for testing, but it is more likely to
 dist-installer\MineHostHelperSetup.exe
 ```
 
+For a small private friend group, MineHost Helper also has a self-signed Friend Mode package. It signs the installer with a private certificate and includes a helper for friends to trust that certificate. This is not for public distribution. See [Friend Mode Self-Signed Builds](docs/FRIEND_MODE_SIGNING.md).
+
 The setup app lets the user choose the install folder, create the local web UI username/password, creates shortcuts, registers an uninstaller in Windows Apps & Features, and installs `Uninstall MineHost Helper.exe` into the install folder. If MineHost Helper is already installed, setup offers Update / Repair or Clean Install. Update / Repair detects the existing web login and keeps the same username/password hash by default.
 
 Unsigned EXEs/installers may trigger Windows SmartScreen or Defender false positives. That is expected for early builds; public-friendly releases should be Authenticode signed. Starting with `v0.1.22`, the recommended download is a portable ZIP with no MineHost Helper EXE.
