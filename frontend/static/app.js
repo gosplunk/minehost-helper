@@ -37,6 +37,7 @@ const titles = {
   players: "Players",
   console: "Console",
   files: "Files",
+  "world-map": "World Map",
   backups: "Backups",
   networking: "Networking",
   help: "Help",
@@ -1434,6 +1435,155 @@ async function saveOpenFile() {
   });
 }
 
+async function renderWorldMap() {
+  const server = selectedServer();
+  if (!server) {
+    $("world-map").innerHTML = noServerCard();
+    return;
+  }
+  const dimension = state.mapDimension || "overworld";
+  const data = await api(`/api/servers/${server.id}/world-map?dimension=${encodeURIComponent(dimension)}`);
+  state.mapDimension = data.dimension || dimension;
+  $("world-map").innerHTML = `
+    <div class="map-layout">
+      <div class="card">
+        <div class="map-head">
+          <div>
+            <p class="eyebrow">Vanilla world explorer</p>
+            <h2>${escapeHtml(data.label)} explored map</h2>
+            <p class="muted">Shows chunks saved in vanilla Minecraft region files. This is an explored-area overview, not a live terrain render.</p>
+          </div>
+          <div class="actions">
+            <button class="primary" onclick="renderWorldMap()">Refresh Map</button>
+          </div>
+        </div>
+        <div class="dimension-tabs">
+          ${(data.dimensions || []).map((item) => `
+            <button class="${item.id === data.dimension ? "primary" : ""}" onclick="selectMapDimension('${escapeHtml(item.id)}')" ${item.available ? "" : "disabled"}>
+              ${escapeHtml(item.label)}${item.available ? "" : " (not found)"}
+            </button>
+          `).join("")}
+        </div>
+        <div class="map-canvas-wrap">
+          <canvas id="world-map-canvas" width="1100" height="720" aria-label="Explored chunk map"></canvas>
+        </div>
+        <p class="callout info">${escapeHtml(data.safe_refresh_note || data.note || "Use Refresh Map after players explore new areas.")}</p>
+      </div>
+      <div class="card">
+        <h2>Map details</h2>
+        <div class="table-list">
+          <div class="list-item"><strong>World folder</strong><span>${escapeHtml(data.world_name || "world")}</span></div>
+          <div class="list-item"><strong>Dimension</strong><span>${escapeHtml(data.label)}</span></div>
+          <div class="list-item"><strong>Explored chunks</strong><span>${data.chunk_count}</span></div>
+          <div class="list-item"><strong>Region files with chunks</strong><span>${data.region_count}</span></div>
+          <div class="list-item"><strong>Server status</strong><span>${escapeHtml(data.server_status || server.status)}</span></div>
+        </div>
+        <p class="callout warning">For the safest full refresh, stop the server first. Reading headers while running is lightweight, but Minecraft may save newly explored chunks after this scan.</p>
+        <h3 style="margin-top:18px">How to read this map</h3>
+        <p class="muted">Each square is one generated chunk. North is up. The crosshair marks chunk 0,0 near world spawn for most vanilla worlds.</p>
+      </div>
+    </div>`;
+  drawWorldMap(data);
+}
+
+function selectMapDimension(dimension) {
+  state.mapDimension = dimension;
+  renderWorldMap();
+}
+
+function drawWorldMap(data) {
+  const canvas = $("world-map-canvas");
+  if (!canvas) return;
+  const context = canvas.getContext("2d");
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  const cssWidth = Math.max(720, Math.floor(rect.width || 1100));
+  const cssHeight = 720;
+  canvas.width = Math.floor(cssWidth * ratio);
+  canvas.height = Math.floor(cssHeight * ratio);
+  canvas.style.height = `${cssHeight}px`;
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, cssWidth, cssHeight);
+  const chunks = data.chunks || [];
+  const gradient = context.createLinearGradient(0, 0, cssWidth, cssHeight);
+  gradient.addColorStop(0, "rgba(223, 240, 200, 0.92)");
+  gradient.addColorStop(1, "rgba(248, 234, 209, 0.92)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, cssWidth, cssHeight);
+  drawMapGrid(context, cssWidth, cssHeight);
+  if (!chunks.length) {
+    context.fillStyle = "#657360";
+    context.font = "800 22px Bahnschrift, Segoe UI, sans-serif";
+    context.textAlign = "center";
+    context.fillText(data.available ? "No explored chunks found yet." : "No vanilla region folder found for this dimension.", cssWidth / 2, cssHeight / 2);
+    return;
+  }
+  const bounds = data.bounds || {};
+  const minX = Number(bounds.min_x);
+  const maxX = Number(bounds.max_x);
+  const minZ = Number(bounds.min_z);
+  const maxZ = Number(bounds.max_z);
+  const padding = 44;
+  const spanX = Math.max(1, maxX - minX + 1);
+  const spanZ = Math.max(1, maxZ - minZ + 1);
+  const cell = Math.max(2, Math.min((cssWidth - padding * 2) / spanX, (cssHeight - padding * 2) / spanZ));
+  const mapWidth = spanX * cell;
+  const mapHeight = spanZ * cell;
+  const startX = (cssWidth - mapWidth) / 2;
+  const startY = (cssHeight - mapHeight) / 2;
+  context.fillStyle = "rgba(31, 111, 67, 0.9)";
+  for (const chunk of chunks) {
+    const x = startX + (chunk.x - minX) * cell;
+    const y = startY + (chunk.z - minZ) * cell;
+    context.fillRect(x, y, Math.max(1, cell - 0.35), Math.max(1, cell - 0.35));
+  }
+  drawAxis(context, startX, startY, cell, minX, minZ, spanX, spanZ, cssWidth, cssHeight);
+}
+
+function drawMapGrid(context, width, height) {
+  context.save();
+  context.strokeStyle = "rgba(90, 56, 35, 0.08)";
+  context.lineWidth = 1;
+  for (let x = 0; x <= width; x += 38) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x, height);
+    context.stroke();
+  }
+  for (let y = 0; y <= height; y += 38) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(width, y);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawAxis(context, startX, startY, cell, minX, minZ, spanX, spanZ, width, height) {
+  context.save();
+  context.strokeStyle = "rgba(226, 76, 67, 0.7)";
+  context.fillStyle = "rgba(18, 23, 19, 0.8)";
+  context.lineWidth = 2;
+  if (minX <= 0 && minX + spanX > 0) {
+    const zeroX = startX + (0 - minX) * cell + cell / 2;
+    context.beginPath();
+    context.moveTo(zeroX, Math.max(0, startY - 20));
+    context.lineTo(zeroX, Math.min(height, startY + spanZ * cell + 20));
+    context.stroke();
+  }
+  if (minZ <= 0 && minZ + spanZ > 0) {
+    const zeroY = startY + (0 - minZ) * cell + cell / 2;
+    context.beginPath();
+    context.moveTo(Math.max(0, startX - 20), zeroY);
+    context.lineTo(Math.min(width, startX + spanX * cell + 20), zeroY);
+    context.stroke();
+  }
+  context.font = "800 13px Bahnschrift, Segoe UI, sans-serif";
+  context.fillText(`X ${minX} to ${minX + spanX - 1}`, 18, height - 22);
+  context.fillText(`Z ${minZ} to ${minZ + spanZ - 1}`, 18, height - 42);
+  context.restore();
+}
+
 async function createBackup() {
   const server = selectedServer();
   await runAction("Backup created", async () => api(`/api/servers/${server.id}/backups`, { method: "POST" }));
@@ -1704,6 +1854,7 @@ async function render() {
     if (state.page === "console") renderConsole();
     if (state.page === "players") await renderPlayers();
     if (state.page === "files") await renderFiles();
+    if (state.page === "world-map") await renderWorldMap();
     if (state.page === "backups") await renderBackups();
     if (state.page === "networking") await renderNetworking();
     if (state.page === "help") await renderHelp();

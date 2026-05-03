@@ -267,6 +267,10 @@ nav a[href="#networking"]::before {
   background: linear-gradient(180deg, var(--diamond), #247f82);
 }
 
+nav a[href="#world-map"]::before {
+  background: linear-gradient(180deg, var(--grass-2), var(--diamond));
+}
+
 nav a[href="#backups"]::before {
   background: linear-gradient(180deg, var(--gold), #9d681b);
 }
@@ -754,6 +758,41 @@ details,
   min-height: 180px;
   max-height: 260px;
   margin-top: 14px;
+}
+
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 0.38fr);
+  gap: 16px;
+}
+
+.map-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.dimension-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.map-canvas-wrap {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent),
+    var(--surface-2);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.06);
+}
+
+#world-map-canvas {
+  width: 100%;
+  display: block;
 }
 
 .quick-stats {
@@ -1285,6 +1324,8 @@ ul {
   .resolution-card,
   .command-hero,
   .command-grid,
+  .map-layout,
+  .map-head,
   .setup-hero,
   .setup-flow-head,
   .split,

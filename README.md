@@ -27,11 +27,11 @@ The manager UI binds to `127.0.0.1` by default so only this PC can control it. D
   </tr>
   <tr>
     <td><strong>Server Settings</strong><br><img src="docs/screenshots/04-server-settings.png" alt="MineHost Helper server settings" width="420"></td>
-    <td><strong>Networking</strong><br><img src="docs/screenshots/05-networking.png" alt="MineHost Helper networking wizard" width="420"></td>
+    <td><strong>World Map</strong><br><img src="docs/screenshots/08-world-map.png" alt="MineHost Helper vanilla explored world map" width="420"></td>
   </tr>
   <tr>
+    <td><strong>Networking</strong><br><img src="docs/screenshots/05-networking.png" alt="MineHost Helper networking wizard" width="420"></td>
     <td><strong>Discord Setup</strong><br><img src="docs/screenshots/06-help-discord.png" alt="MineHost Helper Discord webhook setup" width="420"></td>
-    <td></td>
   </tr>
 </table>
 
@@ -145,6 +145,18 @@ The Help page includes Discord webhook setup. Paste a webhook URL from Discord S
 The Players page provides simple buttons for common player commands such as whitelist, OP/de-OP, kick, ban, and unban. These actions are sent to the running Minecraft server console, so the server must be running.
 
 The Files page provides a safe file browser for the selected server folder. MineHost Helper opens and saves text/config files only, prevents path traversal, and creates a backup copy before overwriting a file.
+
+## World Map
+
+The World Map page works with vanilla Minecraft worlds without mods or plugins. It scans saved `.mca` region file headers for the Overworld, Nether, and End, then draws an explored-chunk overview. This is intentionally lightweight and safe: it shows which chunks have been generated, not a full terrain-color render.
+
+Use Refresh Map after players explore new areas. For the safest full refresh, stop the server first; reading region headers while the server is running is lightweight, but Minecraft may save new chunks after the scan.
+
+Current limitations:
+
+- The map shows explored/generated chunks, not detailed terrain colors.
+- Player markers are not shown yet.
+- It does not auto-refresh continuously.
 
 The Help page includes a problem explainer that scans recent logs for common issues such as port conflicts, old Java, missing EULA, out-of-memory errors, and mod mismatches. It also checks GitHub for newer MineHost Helper releases.
 

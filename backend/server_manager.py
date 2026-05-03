@@ -26,6 +26,7 @@ from .properties_manager import properties_from_create_request, read_properties,
 from .server_discovery import find_server_jar, server_candidate
 from .storage import servers_store
 from .utils import ensure_child_path, slugify_name
+from .world_map import scan_dimension
 
 EDITABLE_EXTENSIONS = {".txt", ".json", ".properties", ".yml", ".yaml", ".toml", ".cfg", ".conf", ".log"}
 
@@ -624,6 +625,15 @@ class ServerManager:
             "server_disk": disk,
             "system": system,
         }
+
+    def world_map(self, server_id: str, dimension: str = "overworld") -> dict[str, Any]:
+        server = self.get_server(server_id)
+        data = scan_dimension(self._server_dir(server_id), dimension)
+        data["server_status"] = server.get("status", "stopped")
+        data["safe_refresh_note"] = (
+            "If the server is running, this reads saved region headers only. Use Refresh Map after players explore new areas."
+        )
+        return data
 
     def player_lists(self, server_id: str) -> dict[str, Any]:
         server_dir = self._server_dir(server_id)

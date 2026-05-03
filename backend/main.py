@@ -426,6 +426,14 @@ def list_files(server_id: str, path: str = "") -> dict[str, Any]:
         raise _api_error(exc)
 
 
+@app.get("/api/servers/{server_id}/world-map")
+def world_map(server_id: str, dimension: str = Query("overworld")) -> dict[str, Any]:
+    try:
+        return server_manager.world_map(server_id, dimension)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
 @app.get("/api/servers/{server_id}/files/read")
 def read_file(server_id: str, path: str) -> dict[str, Any]:
     try:

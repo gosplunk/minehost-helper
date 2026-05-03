@@ -382,6 +382,40 @@ def test_file_manager_sandboxes_and_backs_up_text_files(tmp_path: Path) -> None:
         manager.read_file("family", "../outside.txt")
 
 
+def test_world_map_scans_vanilla_region_headers(tmp_path: Path) -> None:
+    from backend.world_map import scan_dimension
+
+    write_properties(tmp_path, {"level-name": "world"}, make_backup=False)
+    region_dir = tmp_path / "world" / "region"
+    region_dir.mkdir(parents=True)
+    header = bytearray(4096)
+    # Local chunk 0,0 in region 1,-2 -> global chunk 32,-64.
+    header[0:4] = b"\x00\x00\x02\x01"
+    # Local chunk 5,3 index 101 -> global chunk 37,-61.
+    offset = 101 * 4
+    header[offset:offset + 4] = b"\x00\x00\x03\x01"
+    (region_dir / "r.1.-2.mca").write_bytes(bytes(header) + b"\x00" * 4096)
+
+    data = scan_dimension(tmp_path, "overworld")
+
+    assert data["available"] is True
+    assert data["chunk_count"] == 2
+    assert {"x": 32, "z": -64} in data["chunks"]
+    assert {"x": 37, "z": -61} in data["chunks"]
+    assert data["bounds"] == {"min_x": 32, "max_x": 37, "min_z": -64, "max_z": -61}
+
+
+def test_world_map_reports_missing_dimension(tmp_path: Path) -> None:
+    from backend.world_map import scan_dimension
+
+    write_properties(tmp_path, {"level-name": "world"}, make_backup=False)
+
+    data = scan_dimension(tmp_path, "nether")
+
+    assert data["available"] is False
+    assert data["chunks"] == []
+
+
 def test_diagnostics_explains_common_errors() -> None:
     from backend.diagnostics import explain_lines
 
