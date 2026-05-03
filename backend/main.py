@@ -5,17 +5,20 @@ import threading
 from typing import Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import app_settings, backup_scheduler, firewall, java_manager, minecraft_downloader, networking, update_checker
+from . import app_settings, auth_manager, backup_scheduler, discord_webhook, firewall, java_manager, minecraft_downloader, networking, update_checker
 from .server_discovery import scan_existing_servers
 from .config import APP_NAME, HOST, PORT, STATIC_DIR, ensure_directories
 from .models import (
+    AuthRequest,
+    AuthSetupRequest,
     CommandRequest,
     AppSettingsUpdateRequest,
     BackupScheduleUpdateRequest,
+    DiscordSettingsUpdateRequest,
     FileWriteRequest,
     FirewallFixRequest,
     PlayerActionRequest,
@@ -53,6 +56,26 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def require_local_login(request: Request, call_next):
+    path = request.url.path
+    public_paths = (
+        "/",
+        "/favicon.ico",
+        "/api/health",
+        "/api/auth/status",
+        "/api/auth/login",
+        "/api/auth/setup",
+    )
+    if path.startswith("/static/") or path in public_paths:
+        return await call_next(request)
+    if auth_manager.validate_session(request.cookies.get(auth_manager.COOKIE_NAME)):
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"detail": {"message": "Sign in to MineHost Helper first."}}, status_code=401)
+    return JSONResponse({"detail": "Sign in to MineHost Helper first."}, status_code=401)
+
+
 def _api_error(exc: Exception) -> HTTPException:
     return HTTPException(status_code=400, detail={"message": str(exc), "try_next": "Check the page guidance and try again."})
 
@@ -81,6 +104,46 @@ def _selected_server(server_id: str | None, servers: list[dict[str, Any]]) -> di
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "app": APP_NAME, "host": HOST, "port": PORT}
+
+
+@app.get("/api/auth/status")
+def auth_status(request: Request) -> dict[str, Any]:
+    status = auth_manager.status()
+    status["authenticated"] = auth_manager.validate_session(request.cookies.get(auth_manager.COOKIE_NAME))
+    return status
+
+
+@app.post("/api/auth/setup")
+def auth_setup(data: AuthSetupRequest) -> dict[str, Any]:
+    try:
+        return auth_manager.setup(data.username, data.password)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.post("/api/auth/login")
+def auth_login(data: AuthRequest) -> Response:
+    try:
+        token = auth_manager.create_session(data.username, data.password)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail={"message": str(exc)})
+    response = JSONResponse({"ok": True, "username": data.username})
+    response.set_cookie(
+        auth_manager.COOKIE_NAME,
+        token,
+        max_age=auth_manager.SESSION_SECONDS,
+        httponly=True,
+        samesite="strict",
+    )
+    return response
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request) -> Response:
+    auth_manager.clear_session(request.cookies.get(auth_manager.COOKIE_NAME))
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(auth_manager.COOKIE_NAME)
+    return response
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -141,6 +204,27 @@ def update_check() -> dict[str, Any]:
 def update_app_settings(data: AppSettingsUpdateRequest) -> dict[str, Any]:
     try:
         return app_settings.update_settings(data.model_dump(exclude_none=True))
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/discord/settings")
+def get_discord_settings() -> dict[str, Any]:
+    return discord_webhook.get_settings()
+
+
+@app.put("/api/discord/settings")
+def update_discord_settings(data: DiscordSettingsUpdateRequest) -> dict[str, Any]:
+    try:
+        return discord_webhook.update_settings(data.model_dump(exclude_none=True))
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.post("/api/discord/test")
+def test_discord_webhook() -> dict[str, Any]:
+    try:
+        return discord_webhook.test_message()
     except Exception as exc:
         raise _api_error(exc)
 
@@ -211,7 +295,9 @@ def dashboard(server_id: str | None = None) -> dict[str, Any]:
 @app.post("/api/servers/{server_id}/start")
 def start_server(server_id: str) -> dict[str, Any]:
     try:
-        return server_manager.start(server_id)
+        server = server_manager.start(server_id)
+        discord_webhook.notify_event(f"Starting Minecraft server: {server.get('name', server_id)}")
+        return server
     except Exception as exc:
         raise _api_error(exc)
 
@@ -219,7 +305,9 @@ def start_server(server_id: str) -> dict[str, Any]:
 @app.post("/api/servers/{server_id}/stop")
 def stop_server(server_id: str) -> dict[str, Any]:
     try:
-        return server_manager.stop(server_id)
+        server = server_manager.stop(server_id)
+        discord_webhook.notify_event(f"Stopping Minecraft server: {server.get('name', server_id)}")
+        return server
     except Exception as exc:
         raise _api_error(exc)
 
@@ -227,7 +315,9 @@ def stop_server(server_id: str) -> dict[str, Any]:
 @app.post("/api/servers/{server_id}/restart")
 def restart_server(server_id: str) -> dict[str, Any]:
     try:
-        return server_manager.restart(server_id)
+        server = server_manager.restart(server_id)
+        discord_webhook.notify_event(f"Restarting Minecraft server: {server.get('name', server_id)}")
+        return server
     except Exception as exc:
         raise _api_error(exc)
 
@@ -395,7 +485,9 @@ def update_backup_schedule(server_id: str, data: BackupScheduleUpdateRequest) ->
 @app.post("/api/servers/{server_id}/backups")
 def create_backup(server_id: str) -> dict[str, Any]:
     try:
-        return server_manager.create_backup(server_id)
+        backup = server_manager.create_backup(server_id)
+        discord_webhook.notify_event(f"Created Minecraft server backup: {backup.get('name', server_id)}")
+        return backup
     except Exception as exc:
         raise _api_error(exc)
 

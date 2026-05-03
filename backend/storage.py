@@ -37,3 +37,5 @@ class JsonStorage:
 servers_store = JsonStorage(APP_DATA_DIR / "servers.json")
 settings_store = JsonStorage(APP_DATA_DIR / "settings.json")
 backup_settings_store = JsonStorage(APP_DATA_DIR / "backup_settings.json")
+auth_store = JsonStorage(APP_DATA_DIR / "auth.json")
+discord_store = JsonStorage(APP_DATA_DIR / "discord.json")

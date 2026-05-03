@@ -139,6 +139,23 @@ class AppSettingsUpdateRequest(BaseModel):
     auto_start_server_ids: list[str] | None = None
 
 
+class AuthRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class AuthSetupRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=8, max_length=256)
+
+
+class DiscordSettingsUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    webhook_url: str | None = Field(default=None, max_length=500)
+    webhook_name: str | None = Field(default=None, max_length=80)
+    clear: bool | None = None
+
+
 class BackupInfo(BaseModel):
     name: str
     path: str

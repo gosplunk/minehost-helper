@@ -72,6 +72,40 @@ def test_installer_parses_java_feature_versions() -> None:
     assert parse_java_feature_version("not a java version") is None
 
 
+def test_installer_writes_reusable_auth_file(tmp_path: Path) -> None:
+    from installer.bootstrap_installer import read_existing_auth_username, write_auth_file
+
+    write_auth_file(tmp_path, "family_host", "correct horse")
+
+    assert read_existing_auth_username(tmp_path) == "family_host"
+    assert (tmp_path / "app_data" / "auth.json").exists()
+
+
+def test_auth_manager_hashes_password_and_validates_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import auth_manager, storage
+
+    monkeypatch.setattr(storage, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(auth_manager, "auth_store", JsonStorage(tmp_path / "auth.json"))
+
+    auth_manager.setup("family_host", "correct horse")
+    token = auth_manager.create_session("family_host", "correct horse")
+
+    assert auth_manager.verify("family_host", "wrong password") is False
+    assert auth_manager.validate_session(token) is True
+    auth_manager.clear_session(token)
+    assert auth_manager.validate_session(token) is False
+
+
+def test_discord_webhook_validation_rejects_non_discord_urls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import discord_webhook, storage
+
+    monkeypatch.setattr(storage, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(discord_webhook, "discord_store", JsonStorage(tmp_path / "discord.json"))
+
+    with pytest.raises(ValueError, match="Discord webhook URL"):
+        discord_webhook.update_settings({"enabled": True, "webhook_url": "https://example.com/hook"})
+
+
 def test_required_java_version_for_minecraft_bundler_jar(tmp_path: Path) -> None:
     jar_path = tmp_path / "server.jar"
     header = b"\xca\xfe\xba\xbe" + (0).to_bytes(2, "big") + (69).to_bytes(2, "big")

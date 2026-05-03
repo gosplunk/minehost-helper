@@ -68,6 +68,7 @@ function toast(message, type = "ok") {
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     ...options,
   });
   const rawBody = await response.text();
@@ -82,9 +83,66 @@ async function api(path, options = {}) {
   if (!response.ok) {
     const detail = data?.detail;
     const message = detail?.message || detail || (typeof data === "string" ? data : null) || `Request failed with HTTP ${response.status}.`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
   return data;
+}
+
+function renderLogin(authStatus) {
+  const setupRequired = !authStatus?.configured;
+  document.body.innerHTML = `
+    <main class="auth-screen">
+      <section class="auth-card">
+        <div class="brand auth-brand">
+          <div class="brand-mark">MH</div>
+          <div>
+            <strong>MineHost Helper</strong>
+            <span>Private local control center</span>
+          </div>
+        </div>
+        <p class="eyebrow">${setupRequired ? "Create web login" : "Sign in"}</p>
+        <h1>${setupRequired ? "Protect this manager" : "Welcome back"}</h1>
+        <p class="muted">${setupRequired ? "Create a username and password for this PC. Friends should never need this password." : "Enter the MineHost Helper login created during setup."}</p>
+        <form id="auth-form" class="stack">
+          <label class="field">Username<input name="username" autocomplete="username" required value="${escapeHtml(authStatus?.username || "")}"></label>
+          <label class="field">Password<input name="password" type="password" autocomplete="${setupRequired ? "new-password" : "current-password"}" required minlength="${setupRequired ? "8" : "1"}"></label>
+          ${setupRequired ? `<p class="callout info">Use at least 8 characters. This only protects the local manager web UI; it does not change your Minecraft account.</p>` : ""}
+          <button class="primary" type="submit">${setupRequired ? "Create Login" : "Sign In"}</button>
+        </form>
+        <p id="auth-error" class="callout danger hidden"></p>
+      </section>
+    </main>`;
+  $("auth-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const endpoint = setupRequired ? "/api/auth/setup" : "/api/auth/login";
+    try {
+      const payload = {
+        username: String(form.get("username") || ""),
+        password: String(form.get("password") || ""),
+      };
+      await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
+      if (setupRequired) {
+        await api("/api/auth/login", { method: "POST", body: JSON.stringify(payload) });
+      }
+      location.reload();
+    } catch (error) {
+      const node = $("auth-error");
+      node.textContent = error.message;
+      node.classList.remove("hidden");
+    }
+  });
+}
+
+async function ensureAuthenticated() {
+  const status = await api("/api/auth/status");
+  if (!status.configured || !status.authenticated) {
+    renderLogin(status);
+    return false;
+  }
+  return true;
 }
 
 function selectedServer() {
@@ -1292,9 +1350,10 @@ async function tryUpnp() {
 
 async function renderHelp() {
   const server = selectedServer();
-  const [update, diagnostics] = await Promise.all([
+  const [update, diagnostics, discord] = await Promise.all([
     api("/api/app/update-check"),
     server ? api(`/api/servers/${server.id}/diagnostics`) : Promise.resolve(null),
+    api("/api/discord/settings"),
   ]);
   $("help").innerHTML = `
     <div class="split">
@@ -1308,6 +1367,28 @@ async function renderHelp() {
           ${update.release_url ? `<button onclick="window.open('${escapeHtml(update.release_url)}', '_blank')">Release Notes</button>` : ""}
         </div>
       </div>
+      <form id="discord-form" class="card">
+        <h2>Discord notifications</h2>
+        <p class="muted">Paste a Discord webhook and MineHost Helper can post simple server updates for your friend group.</p>
+        <p class="callout ${discord.configured ? "success" : "info"}">${discord.configured ? "Discord webhook is saved. The full URL is hidden for safety." : "No Discord webhook is configured yet."}</p>
+        <div class="form-grid">
+          <label class="field">Webhook URL
+            <span class="field-hint">Discord: Server Settings > Integrations > Webhooks > Copy Webhook URL.</span>
+            <input name="webhook_url" type="password" placeholder="${discord.configured ? "Leave blank to keep current webhook" : "https://discord.com/api/webhooks/..."}" autocomplete="off">
+          </label>
+          <label class="field">Bot name
+            <span class="field-hint">This is the name Discord shows for MineHost messages.</span>
+            <input name="webhook_name" value="${escapeHtml(discord.webhook_name || "MineHost Helper")}">
+          </label>
+          <label class="field"><span><input name="enabled" type="checkbox" ${discord.enabled ? "checked" : ""}> Enable Discord notifications</span></label>
+        </div>
+        <p class="callout warning">Treat webhook URLs like passwords. Anyone with the URL can post into that Discord channel.</p>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" type="submit">Save Discord Setup</button>
+          <button type="button" onclick="testDiscord()">Send Test Message</button>
+          <button type="button" onclick="clearDiscord()">Clear Webhook</button>
+        </div>
+      </form>
       <div class="card">
         <h2>Problem explainer</h2>
         <p class="muted">MineHost Helper scans recent logs for common Minecraft startup problems.</p>
@@ -1336,6 +1417,44 @@ async function renderHelp() {
         <p><strong>RCON:</strong> Disabled by default. Only enable it with a strong password.</p>
       </div>
     </div>`;
+  $("discord-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveDiscord();
+  });
+}
+
+async function saveDiscord() {
+  const form = new FormData($("discord-form"));
+  const payload = {
+    enabled: form.has("enabled"),
+    webhook_name: String(form.get("webhook_name") || "MineHost Helper"),
+  };
+  const webhookUrl = String(form.get("webhook_url") || "").trim();
+  if (webhookUrl) payload.webhook_url = webhookUrl;
+  await runAction("Discord setup saved", async () => {
+    await api("/api/discord/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    await renderHelp();
+  });
+}
+
+async function testDiscord() {
+  await runAction("Discord test sent", async () => {
+    await api("/api/discord/test", { method: "POST" });
+  });
+}
+
+async function clearDiscord() {
+  if (!confirm("Clear the saved Discord webhook? MineHost Helper will stop sending Discord notifications.")) return;
+  await runAction("Discord webhook cleared", async () => {
+    await api("/api/discord/settings", {
+      method: "PUT",
+      body: JSON.stringify({ clear: true }),
+    });
+    await renderHelp();
+  });
 }
 
 async function serverAction(action) {
@@ -1418,12 +1537,22 @@ async function render() {
     if (state.page === "networking") await renderNetworking();
     if (state.page === "help") await renderHelp();
   } catch (error) {
+    if (error.status === 401) {
+      const status = await api("/api/auth/status");
+      renderLogin(status);
+      return;
+    }
     $("page-title").textContent = titles[state.page] || "MineHost Helper";
     document.querySelectorAll(".page").forEach((node) => node.classList.toggle("hidden", node.id !== state.page));
     document.querySelectorAll("nav a").forEach((node) => node.classList.toggle("active", node.dataset.page === state.page));
     $(state.page).innerHTML = `<div class="card"><h2>Could not load this page</h2><p class="muted">${error.message}</p></div>`;
     toast(error.message, "error");
   }
+}
+
+async function logout() {
+  await api("/api/auth/logout", { method: "POST" }).catch(() => null);
+  location.reload();
 }
 
 function startDashboardPolling() {
@@ -1459,6 +1588,9 @@ $("server-select").addEventListener("change", (event) => {
 });
 
 $("theme-toggle").addEventListener("click", toggleTheme);
+$("logout-button").addEventListener("click", logout);
 window.addEventListener("hashchange", render);
 applyTheme(state.theme);
-render();
+ensureAuthenticated().then((authenticated) => {
+  if (authenticated) render();
+});
