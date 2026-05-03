@@ -452,16 +452,12 @@ function checked(value) {
   return value ? "checked" : "";
 }
 
-function hoverTip(text) {
-  return `<span class="hover-tip" tabindex="0" aria-label="${escapeHtml(text)}" data-tip="${escapeHtml(text)}">?</span>`;
-}
-
 function fieldLabel(label, tip) {
-  return `<span class="field-label">${escapeHtml(label)}${hoverTip(tip)}</span>`;
+  return `<span class="field-label">${escapeHtml(label)}</span><span class="field-hint">${escapeHtml(tip)}</span>`;
 }
 
 function checkboxLabel(label, tip) {
-  return `${escapeHtml(label)}${hoverTip(tip)}`;
+  return `<span class="checkbox-copy"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(tip)}</small></span>`;
 }
 
 function guidedStepFields(step, draft) {
@@ -476,10 +472,10 @@ function guidedStepFields(step, draft) {
   if (step === 2) {
     return `
       <div class="choice-grid compact">
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="2048" ${draft.ramChoice === "2048" ? "checked" : ""}><strong>2 GB ${hoverTip("Good for a small vanilla server with a few friends. Use more if the world lags.")}</strong><span>Small server, a few friends.</span></label>
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="4096" ${draft.ramChoice === "4096" ? "checked" : ""}><strong>4 GB ${hoverTip("Best default for most home Minecraft servers. Enough room without wasting too much PC memory.")}</strong><span>Recommended for most servers.</span></label>
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="6144" ${draft.ramChoice === "6144" ? "checked" : ""}><strong>6 GB ${hoverTip("Use this for bigger worlds, more players, or heavier exploration. Your PC must have enough free memory.")}</strong><span>Bigger worlds or more players.</span></label>
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="custom" ${draft.ramChoice === "custom" ? "checked" : ""}><strong>Custom ${hoverTip("Advanced. Enter memory in MB. 4096 MB equals 4 GB.")}</strong><span>Choose your own memory amount.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="2048" ${draft.ramChoice === "2048" ? "checked" : ""}><strong>2 GB</strong><span>Small server, a few friends.</span><small class="choice-help">Good for a small vanilla server. Use more if the world lags.</small></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="4096" ${draft.ramChoice === "4096" ? "checked" : ""}><strong>4 GB</strong><span>Recommended for most servers.</span><small class="choice-help">Best default for home servers without wasting too much PC memory.</small></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="6144" ${draft.ramChoice === "6144" ? "checked" : ""}><strong>6 GB</strong><span>Bigger worlds or more players.</span><small class="choice-help">Use this for heavier exploration or more friends if your PC has free memory.</small></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="custom" ${draft.ramChoice === "custom" ? "checked" : ""}><strong>Custom</strong><span>Choose your own memory amount.</span><small class="choice-help">Advanced. Enter memory in MB. 4096 MB equals 4 GB.</small></label>
       </div>
       <div class="form-grid" style="margin-top:16px">
         <label class="field">${fieldLabel("Custom RAM MB", "Only used when Custom is selected. 2048=2 GB, 4096=4 GB, 6144=6 GB.")}<input name="customRam" type="number" min="512" max="65536" value="${escapeHtml(draft.customRam)}"></label>

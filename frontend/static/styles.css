@@ -571,6 +571,14 @@ details,
   line-height: 1.45;
 }
 
+.choice-card .choice-help {
+  display: block;
+  color: color-mix(in srgb, var(--muted) 88%, var(--ink));
+  font-size: 0.86rem;
+  font-weight: 760;
+  line-height: 1.42;
+}
+
 .choice-card.primary-choice {
   background:
     radial-gradient(circle at 90% 0%, rgba(93, 229, 219, 0.16), transparent 12rem),
@@ -711,9 +719,9 @@ details,
 }
 
 .field-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  display: block;
+  color: var(--ink);
+  font-weight: 950;
 }
 
 .field span {
@@ -724,92 +732,43 @@ details,
   font-weight: 850;
 }
 
-.hover-tip {
-  position: relative;
-  width: 20px;
-  height: 20px;
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  color: #f9ffe9;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 45%),
-    linear-gradient(135deg, var(--grass-2), var(--leaf));
-  border: 1px solid rgba(31, 111, 67, 0.32);
-  border-radius: 7px;
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
-  cursor: help;
-  font-size: 0.78rem;
-  font-weight: 1000;
-  line-height: 1;
-  text-align: center;
+.field .field-label {
+  display: block;
+  color: var(--ink);
+  font-weight: 950;
 }
 
-.field .hover-tip,
-.choice-card .hover-tip {
-  display: inline-grid;
-  align-items: center;
-  justify-content: center;
-  place-items: center;
-  gap: 0;
-  color: #f9ffe9;
-  font-size: 0.78rem;
-  font-weight: 1000;
-  line-height: 1;
+.field .field-hint {
+  display: block;
+  margin-top: -3px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.35;
 }
 
-.hover-tip::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 10px);
-  z-index: 40;
-  width: min(280px, 72vw);
-  padding: 11px 12px;
-  color: #f7ffe8;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.11), transparent),
-    #111a12;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  box-shadow: var(--shadow-tight);
-  font-size: 0.84rem;
-  font-weight: 850;
-  line-height: 1.38;
-  opacity: 0;
-  pointer-events: none;
-  text-align: left;
-  text-transform: none;
-  transform: translateX(-50%) translateY(4px);
-  transition: opacity 0.14s ease, transform 0.14s ease;
+.checkbox-copy {
+  display: grid;
+  gap: 3px;
 }
 
-.hover-tip::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 4px);
-  z-index: 41;
-  width: 10px;
-  height: 10px;
-  background: #111a12;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) rotate(45deg);
-  transition: opacity 0.14s ease;
+.field .checkbox-copy {
+  display: grid;
+  align-items: start;
+  gap: 3px;
 }
 
-.hover-tip:hover::after,
-.hover-tip:focus::after,
-.hover-tip:hover::before,
-.hover-tip:focus::before {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+.checkbox-copy strong {
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 920;
 }
 
-.hover-tip:hover::before,
-.hover-tip:focus::before {
-  transform: translateX(-50%) rotate(45deg);
+.checkbox-copy small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 720;
+  line-height: 1.35;
 }
 
 input,
