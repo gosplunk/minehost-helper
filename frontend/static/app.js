@@ -511,7 +511,7 @@ function renderImportSetup() {
         <div>
           <p class="eyebrow">Import existing server</p>
           <h2>Step 1: Find Minecraft server folders</h2>
-          <p class="muted">MineHost Helper searches common folders like Desktop, Downloads, Documents, and Games. It does not move or delete anything.</p>
+          <p class="muted">MineHost Helper can do a quick common-folder search first, then a deeper PC search if needed. It does not move or delete anything.</p>
         </div>
       </div>
       <div class="split">
@@ -519,11 +519,11 @@ function renderImportSetup() {
           <h3>Search this PC</h3>
           <p class="muted">If a server is found, choose Add to MineHost. Stop any old server window first so MineHost Helper can control it cleanly.</p>
           <div class="actions">
-            <button class="primary" onclick="scanExistingServers()">Search Again</button>
+            <button class="primary" onclick="scanExistingServers(true)">Deep Search This PC</button>
             <button onclick="browseExistingServerFolder()">Browse for Server Folder</button>
             <button onclick="chooseSetupMode('guided')">Create New Instead</button>
           </div>
-          <p class="callout info">Can’t find it? Click Browse and choose the server folder, a folder just above it, or a nearby folder inside it. If the jar is buried deeper, paste the full path to the <code>.jar</code> file below.</p>
+          <p class="callout info">Deep Search checks your user folders and available drives while skipping Windows/system folders. It can take a minute on large drives. If it still misses the server, Browse or paste the folder/jar path below.</p>
           <div class="manual-path-card">
             <label class="field">${fieldLabel("Or paste the server folder or jar path", "Open the folder or jar in File Explorer, click the address bar, copy the path, then paste it here.")}<input id="manual-server-path" placeholder="C:\\Users\\YourName\\Desktop\\Minecraft Server\\server.jar"></label>
             <button onclick="useManualServerPath()">Use This Path</button>
@@ -797,12 +797,12 @@ function renderManualSetup() {
   $("setup-form").addEventListener("submit", createServerFromForm);
 }
 
-async function scanExistingServers() {
+async function scanExistingServers(deep = false) {
   const target = $("discovery-results");
   if (!target) return;
-  target.innerHTML = `<p class="muted"><span class="spinner inline" aria-hidden="true"></span> Searching common folders like Desktop, Downloads, Documents, and Games...</p>`;
+  target.innerHTML = `<p class="muted"><span class="spinner inline" aria-hidden="true"></span> ${deep ? "Deep searching this PC. This can take a minute on large drives..." : "Searching common folders like Desktop, Downloads, Documents, and Games..."}</p>`;
   try {
-    state.discoveredServers = await api("/api/servers/discovery");
+    state.discoveredServers = await api(`/api/servers/discovery${deep ? "?deep=true" : ""}`);
     renderDiscoveryResults();
   } catch (error) {
     target.innerHTML = `<p class="callout danger">${escapeHtml(error.message)}</p>`;
@@ -817,8 +817,9 @@ function renderDiscoveryResults() {
       <p class="callout">No existing Minecraft Java server folders were found in common locations.</p>
       <div class="empty-state">
         <h3>Know where your server is?</h3>
-        <p class="muted">Click Browse for Server Folder and select the folder that has <code>server.properties</code>, or paste the full path to the server <code>.jar</code>.</p>
-        <button class="primary" onclick="browseExistingServerFolder()">Browse for Server Folder</button>
+        <p class="muted">Try Deep Search to scan more of this PC, click Browse for Server Folder, or paste the full path to the server <code>.jar</code>.</p>
+        <button class="primary" onclick="scanExistingServers(true)">Deep Search This PC</button>
+        <button onclick="browseExistingServerFolder()">Browse for Server Folder</button>
       </div>`;
     return;
   }

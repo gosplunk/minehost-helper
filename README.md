@@ -141,13 +141,13 @@ If you already have a Minecraft Java server folder on this PC:
 1. Open Get Started.
 2. Choose `Import existing Minecraft server`.
 3. MineHost Helper scans common folders automatically.
-4. If MineHost Helper does not find it, click `Browse for Server Folder`.
-5. Select the main server folder, a folder just above it, or a nearby folder inside it. You can also paste the full path to the server `.jar` into the manual path box.
+4. If MineHost Helper does not find it, click `Deep Search This PC` to search user folders and available drives more thoroughly.
+5. If search still misses it, click `Browse for Server Folder` and select the main server folder, a folder just above it, or a nearby folder inside it. You can also paste the full path to the server `.jar` into the manual path box.
 6. Choose Add to MineHost on the server you want.
 7. Stop that server if it is already running somewhere else.
 8. Start it from the Dashboard.
 
-MineHost Helper looks in common folders such as Desktop, Downloads, Documents, Games, AppData, and `D:\Dev`. It adopts the existing folder in place, so it does not move or delete your world. The server root must have `server.properties`; the server `.jar` may be in that folder or several folders deeper, which is common for Forge, Fabric, and server packs.
+MineHost Helper looks in common folders such as Desktop, Downloads, Documents, Games, AppData, and `D:\Dev`. Deep Search also checks available drive roots while skipping Windows/system/build/cache folders. It adopts the existing folder in place, so it does not move or delete your world. The server root must have `server.properties`; the server `.jar` may be in that folder or several folders deeper, which is common for Forge, Fabric, and server packs.
 
 ## Start, Stop, Restart
 

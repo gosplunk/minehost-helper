@@ -352,6 +352,26 @@ def test_discovery_finds_existing_server_folder(tmp_path: Path) -> None:
     assert candidate["world_exists"] is True
 
 
+def test_deep_discovery_finds_server_below_quick_scan_depth(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import server_discovery
+
+    server_dir = tmp_path
+    for index in range(7):
+        server_dir = server_dir / f"folder-{index}"
+    server_dir.mkdir(parents=True)
+    write_properties(server_dir, {"server-port": 25579}, make_backup=False)
+    (server_dir / "server.jar").write_text("fake jar", encoding="utf-8")
+
+    monkeypatch.setattr(server_discovery, "common_search_roots", lambda deep=False: [tmp_path])
+
+    assert server_discovery.scan_existing_servers(deep=False) == []
+    results = server_discovery.scan_existing_servers(deep=True)
+
+    assert len(results) == 1
+    assert results[0]["path"] == str(server_dir.resolve())
+    assert results[0]["port"] == 25579
+
+
 def test_manual_browse_existing_server_folder_returns_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from backend import main
 

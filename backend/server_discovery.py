@@ -12,6 +12,10 @@ from .utils import sanitize_server_name
 SERVER_JAR_HINTS = ("server", "minecraft_server", "paper", "spigot", "fabric", "forge", "purpur", "bukkit")
 MAX_SCAN_DEPTH = 5
 MAX_CANDIDATES = 80
+DEEP_SCAN_DEPTH = 10
+DEEP_MAX_CANDIDATES = 200
+QUICK_MAX_SCAN_DIRS = 15_000
+DEEP_MAX_SCAN_DIRS = 90_000
 MAX_JAR_SEARCH_DEPTH = 5
 MAX_SERVER_ROOT_PARENT_DEPTH = 8
 MAX_SERVER_ROOT_CHILD_DEPTH = 6
@@ -31,11 +35,26 @@ IGNORED_JAR_DIRS = {
 }
 
 
-def common_search_roots() -> list[Path]:
+def _drive_roots() -> list[Path]:
+    roots: list[Path] = []
+    for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+        root = Path(f"{letter}:\\")
+        try:
+            if root.exists() and root.is_dir():
+                roots.append(root)
+        except OSError:
+            continue
+    return roots
+
+
+def common_search_roots(deep: bool = False) -> list[Path]:
     roots: list[Path] = []
     home = Path.home()
-    for name in ("Desktop", "Downloads", "Documents", "OneDrive", "Games"):
+    for name in ("Desktop", "Downloads", "Documents", "OneDrive", "Games", "Saved Games"):
         roots.append(home / name)
+    roots.append(home)
+    if home.parent.exists():
+        roots.append(home.parent)
     for env_name in ("USERPROFILE", "APPDATA", "LOCALAPPDATA"):
         value = os.environ.get(env_name)
         if value:
@@ -44,6 +63,8 @@ def common_search_roots() -> list[Path]:
         dev = Path(drive) / "Dev"
         if dev.exists():
             roots.append(dev)
+    if deep:
+        roots.extend(_drive_roots())
     unique: list[Path] = []
     seen: set[str] = set()
     for root in roots:
@@ -248,23 +269,40 @@ def _depth_from(root: Path, candidate: Path) -> int:
         return MAX_SCAN_DEPTH + 1
 
 
-def _safe_walk(root: Path) -> list[Path]:
+def _safe_walk(root: Path, max_depth: int = MAX_SCAN_DEPTH, max_candidates: int = MAX_CANDIDATES, max_dirs: int = QUICK_MAX_SCAN_DIRS) -> list[Path]:
     found: list[Path] = []
     stack = [root]
+    scanned = 0
     ignored = {
         "$recycle.bin",
+        "$windows.~bt",
+        "$winreagent",
         ".git",
         ".venv",
         "__pycache__",
+        "app_data",
+        "backups",
+        "build",
+        "cache",
+        "dist",
+        "dist-friend",
+        "dist-installer",
+        "dist-portable",
         "node_modules",
+        "perflogs",
+        "programdata",
         "windows",
         "program files",
         "program files (x86)",
+        "recovery",
+        "runtimes",
+        "system volume information",
     }
-    while stack and len(found) < MAX_CANDIDATES:
+    while stack and len(found) < max_candidates and scanned < max_dirs:
         current = stack.pop()
-        if _depth_from(root, current) > MAX_SCAN_DEPTH:
+        if _depth_from(root, current) > max_depth:
             continue
+        scanned += 1
         try:
             if looks_like_minecraft_server(current):
                 found.append(current)
@@ -273,7 +311,7 @@ def _safe_walk(root: Path) -> list[Path]:
         except (OSError, PermissionError):
             continue
         for child in children:
-            if child.is_dir() and child.name.lower() not in ignored:
+            if child.is_dir() and not child.is_symlink() and child.name.lower() not in ignored:
                 stack.append(child)
     return found
 
@@ -298,16 +336,19 @@ def server_candidate(path: Path, preferred_jar: Path | None = None) -> dict[str,
     }
 
 
-def scan_existing_servers() -> list[dict[str, Any]]:
+def scan_existing_servers(deep: bool = False) -> list[dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
-    for root in common_search_roots():
-        for path in _safe_walk(root):
+    max_depth = DEEP_SCAN_DEPTH if deep else MAX_SCAN_DEPTH
+    max_candidates = DEEP_MAX_CANDIDATES if deep else MAX_CANDIDATES
+    max_dirs = DEEP_MAX_SCAN_DIRS if deep else QUICK_MAX_SCAN_DIRS
+    for root in common_search_roots(deep=deep):
+        for path in _safe_walk(root, max_depth=max_depth, max_candidates=max_candidates, max_dirs=max_dirs):
             try:
                 candidate = server_candidate(path)
             except Exception:
                 continue
             results[candidate["path"].lower()] = candidate
-            if len(results) >= MAX_CANDIDATES:
+            if len(results) >= max_candidates:
                 break
     return sorted(results.values(), key=lambda item: item["name"].lower())
 

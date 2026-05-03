@@ -245,12 +245,12 @@ def create_server(data: ServerCreateRequest) -> dict[str, Any]:
 
 
 @app.get("/api/servers/discovery")
-def discover_servers() -> list[dict[str, Any]]:
+def discover_servers(deep: bool = Query(False)) -> list[dict[str, Any]]:
     try:
         existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
         return [
             {**candidate, "already_added": candidate["path"].lower() in existing_paths}
-            for candidate in scan_existing_servers()
+            for candidate in scan_existing_servers(deep=deep)
         ]
     except Exception as exc:
         raise _api_error(exc)
