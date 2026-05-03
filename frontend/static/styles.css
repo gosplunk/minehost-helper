@@ -498,6 +498,165 @@ details,
   min-height: 158px;
 }
 
+.setup-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: center;
+  padding: 30px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(93, 229, 219, 0.16), transparent 16rem),
+    linear-gradient(135deg, var(--panel-strong), rgba(var(--panel-rgb), 0.62)),
+    repeating-linear-gradient(45deg, transparent 0 18px, rgba(63, 163, 77, 0.055) 18px 36px);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.setup-java-status {
+  min-width: 260px;
+  padding: 14px 16px;
+  color: color-mix(in srgb, var(--leaf) 72%, var(--ink));
+  background:
+    linear-gradient(135deg, var(--success-bg), rgba(93, 229, 219, 0.12)),
+    repeating-linear-gradient(45deg, transparent 0 12px, rgba(63, 163, 77, 0.07) 12px 24px);
+  border: 1px solid rgba(63, 163, 77, 0.24);
+  border-radius: 20px;
+  font-weight: 900;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.choice-grid.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.choice-card {
+  min-height: 210px;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 12px;
+  padding: 22px;
+  color: var(--ink);
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 42%),
+    var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.choice-card:hover {
+  border-color: rgba(63, 163, 77, 0.38);
+  box-shadow: var(--shadow-tight);
+}
+
+.choice-card strong {
+  font-size: 1.22rem;
+  letter-spacing: -0.035em;
+}
+
+.choice-card span:not(.choice-icon) {
+  color: var(--muted);
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.choice-card.primary-choice {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(93, 229, 219, 0.16), transparent 12rem),
+    linear-gradient(135deg, rgba(117, 208, 90, 0.22), rgba(var(--panel-rgb), 0.78)),
+    var(--panel);
+}
+
+.choice-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: #f9ffe9;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 45%),
+    linear-gradient(135deg, var(--grass-2), var(--leaf));
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.16);
+  font-weight: 1000;
+}
+
+.radio-choice {
+  min-height: 150px;
+  cursor: pointer;
+}
+
+.radio-choice input {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--grass);
+}
+
+.setup-note {
+  margin-top: 18px;
+}
+
+.setup-flow {
+  display: grid;
+  gap: 18px;
+}
+
+.setup-flow-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stepper span {
+  padding: 11px 12px;
+  color: var(--muted);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent),
+    var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  font-size: 0.86rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.stepper span.active {
+  color: #f9ffe9;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent),
+    linear-gradient(135deg, var(--grass-2), var(--leaf));
+  border-color: rgba(31, 111, 67, 0.42);
+}
+
+.stepper span.done {
+  color: color-mix(in srgb, var(--leaf) 72%, var(--ink));
+  border-color: rgba(63, 163, 77, 0.26);
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .quick-stats {
   display: flex;
   flex-wrap: wrap;
@@ -980,9 +1139,15 @@ ul {
 
   .status-card,
   .resolution-card,
+  .setup-hero,
+  .setup-flow-head,
   .split,
   .form-grid,
-  .topbar {
+  .topbar,
+  .choice-grid,
+  .choice-grid.compact,
+  .stepper,
+  .review-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1033,6 +1198,8 @@ ul {
   }
 
   .card,
+  .choice-card,
+  .setup-hero,
   .status-card,
   .callout,
   .progress-card,

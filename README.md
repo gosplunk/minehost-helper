@@ -10,6 +10,8 @@ If you are viewing a private GitHub repo, you must be signed into a GitHub accou
 
 MineHost Helper is a Windows-first local web app for running a Minecraft Java server without command-line work after installation. It installs or downloads what it needs, opens a browser UI automatically, creates servers, writes `server.properties`, starts and stops Minecraft, shows logs, creates backups, and guides users through Windows Firewall and router forwarding.
 
+On first launch, the web app opens to a clean Get Started page with three choices: import an existing Minecraft server, create a new server with guided steps, or create a new server manually from one advanced form.
+
 The manager UI binds to `127.0.0.1` by default so only this PC can control it. Do not expose the manager UI to the internet.
 
 ## Recommended Install For Friends
@@ -45,7 +47,7 @@ If Python is missing, the launcher explains the problem and can ask to install P
 - Creates `.venv` in source mode and installs Python dependencies from `requirements.txt`.
 - Starts the FastAPI backend on `127.0.0.1`.
 - Opens the local web UI.
-- Checks/downloads a safe Eclipse Temurin OpenJDK runtime during install by default. The Setup Wizard can retry later if the network blocks the Java download.
+- Checks/downloads a safe Eclipse Temurin OpenJDK runtime during install by default. Get Started can retry later if the network blocks the Java download.
 - Downloads Minecraft server jars from Mojang's official version manifest.
 - Keeps app data local to the install/source folder.
 
@@ -60,10 +62,11 @@ Local data folders:
 
 ## Create A Server
 
-1. Open Setup Wizard.
-2. Choose server name, Minecraft version, RAM, port, world name, gamemode, difficulty, and player options.
-3. Read and explicitly accept the Minecraft EULA.
-4. Click Create Server.
+1. Open Get Started.
+2. Choose `Setup new server, guided` for the recommended step-by-step path, or `Setup new server, manual` for one advanced form.
+3. Choose server name, Minecraft version, RAM, port, world name, gamemode, difficulty, and player options.
+4. Read and explicitly accept the Minecraft EULA.
+5. Click Create Server.
 
 MineHost Helper downloads the selected server jar using Mojang's official version manifest and verifies SHA1 when Mojang provides it.
 
@@ -71,11 +74,12 @@ MineHost Helper downloads the selected server jar using Mojang's official versio
 
 If you already have a Minecraft Java server folder on this PC:
 
-1. Open Setup Wizard.
-2. Click Find Existing Servers.
-3. Choose Add to MineHost on the server you want.
-4. Stop that server if it is already running somewhere else.
-5. Start it from the Dashboard.
+1. Open Get Started.
+2. Choose `Import existing Minecraft server`.
+3. MineHost Helper scans common folders automatically.
+4. Choose Add to MineHost on the server you want.
+5. Stop that server if it is already running somewhere else.
+6. Start it from the Dashboard.
 
 MineHost Helper looks in common folders such as Desktop, Downloads, Documents, Games, AppData, and `D:\Dev`. It adopts the existing folder in place, so it does not move or delete your world. The folder must contain `server.properties` and a server `.jar`.
 

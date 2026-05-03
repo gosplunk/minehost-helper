@@ -8,11 +8,30 @@ const state = {
   theme: document.documentElement.dataset.theme || "light",
   discoveredServers: [],
   filePath: "",
+  setupMode: "choice",
+  setupStep: 1,
+  setupVersions: null,
+  guidedDraft: {
+    name: "Family Minecraft",
+    version: "latest",
+    ramChoice: "4096",
+    customRam: 4096,
+    port: 25565,
+    world_name: "world",
+    gamemode: "survival",
+    difficulty: "normal",
+    max_players: 10,
+    motd: "A MineHost Helper server",
+    online_mode: true,
+    whitelist: false,
+    command_blocks: false,
+    accepted_eula: false,
+  },
 };
 
 const titles = {
   dashboard: "Dashboard",
-  setup: "Setup Wizard",
+  setup: "Get Started",
   settings: "Server Settings",
   players: "Players",
   console: "Console",
@@ -202,7 +221,7 @@ function noServerCard() {
     <div class="card">
       <h2>Create your first server</h2>
       <p class="muted">MineHost Helper will download the Minecraft server jar from Mojang and help set the basics safely.</p>
-      <button class="primary" onclick="go('setup')">Open Setup Wizard</button>
+      <button class="primary" onclick="go('setup')">Get Started</button>
     </div>`;
 }
 
@@ -264,25 +283,345 @@ function renderDashboard() {
 }
 
 function renderSetup() {
+  if (state.setupMode === "import") {
+    renderImportSetup();
+    return;
+  }
+  if (state.setupMode === "guided") {
+    renderGuidedSetup();
+    return;
+  }
+  if (state.setupMode === "manual") {
+    renderManualSetup();
+    return;
+  }
+  renderSetupChoice();
+}
+
+function renderSetupChoice() {
   $("setup").innerHTML = `
-    <div class="split">
+    <div class="setup-hero">
+      <div>
+        <p class="eyebrow">First thing</p>
+        <h2>What do you want to do?</h2>
+        <p class="muted">Choose the path that matches your situation. MineHost Helper will keep the technical parts out of the way.</p>
+      </div>
+      <div id="java-status" class="setup-java-status">Checking Java...</div>
+    </div>
+    <div class="choice-grid">
+      <button class="choice-card primary-choice" type="button" onclick="chooseSetupMode('import')">
+        <span class="choice-icon">I</span>
+        <strong>Import existing Minecraft server</strong>
+        <span>Search this PC for server folders and add one without moving your world.</span>
+      </button>
+      <button class="choice-card" type="button" onclick="chooseSetupMode('guided')">
+        <span class="choice-icon">G</span>
+        <strong>Setup new server, guided</strong>
+        <span>Recommended. Step-by-step questions with safe defaults.</span>
+      </button>
+      <button class="choice-card" type="button" onclick="chooseSetupMode('manual')">
+        <span class="choice-icon">M</span>
+        <strong>Setup new server, manual</strong>
+        <span>One advanced form if you already know what you want.</span>
+      </button>
+    </div>
+    <div class="card setup-note">
+      <h3>What happens next?</h3>
+      <p class="muted">MineHost Helper prepares Java, downloads the official Minecraft server jar from Mojang, writes safe settings, and shows the exact address to give friends.</p>
+    </div>`;
+  loadJavaStatus();
+}
+
+function chooseSetupMode(mode) {
+  state.setupMode = mode;
+  state.setupStep = 1;
+  renderSetup();
+  if (mode === "import") {
+    scanExistingServers();
+  }
+}
+
+function backToSetupChoice() {
+  state.setupMode = "choice";
+  state.setupStep = 1;
+  renderSetup();
+}
+
+async function loadVersions(selectId = "version-select", selected = "latest") {
+  try {
+    const data = state.setupVersions || await api("/api/minecraft/versions");
+    state.setupVersions = data;
+    const select = $(selectId);
+    if (!select) return;
+    select.innerHTML = `<option value="latest">Latest stable release (${data.latest})</option>`;
+    data.releases.forEach((version) => {
+      const isSelected = version.id === selected ? " selected" : "";
+      select.insertAdjacentHTML("beforeend", `<option value="${version.id}"${isSelected}>${version.id}</option>`);
+    });
+    select.value = selected || "latest";
+  } catch (error) {
+    toast(`Version list unavailable: ${error.message}`, "error");
+  }
+}
+
+function renderImportSetup() {
+  $("setup").innerHTML = `
+    <div class="setup-flow">
+      <div class="setup-flow-head">
+        <button type="button" onclick="backToSetupChoice()">Back</button>
+        <div>
+          <p class="eyebrow">Import existing server</p>
+          <h2>Step 1: Find Minecraft server folders</h2>
+          <p class="muted">MineHost Helper searches common folders like Desktop, Downloads, Documents, and Games. It does not move or delete anything.</p>
+        </div>
+      </div>
+      <div class="split">
+        <div class="card">
+          <h3>Search this PC</h3>
+          <p class="muted">If a server is found, choose Add to MineHost. Stop any old server window first so MineHost Helper can control it cleanly.</p>
+          <div class="actions">
+            <button class="primary" onclick="scanExistingServers()">Search Again</button>
+            <button onclick="chooseSetupMode('guided')">Create New Instead</button>
+          </div>
+          <div id="discovery-results" class="stack" style="margin-top:16px"></div>
+        </div>
+        <div class="card">
+          <h3>What counts as a server?</h3>
+          <p class="muted">A folder with a Minecraft server jar, <code>server.properties</code>, or an existing world folder. Imported servers stay where they are.</p>
+          <p class="callout info">After import, the Dashboard will show Start, Stop, Console, Backups, and Networking for that server.</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderGuidedSetup() {
+  const draft = state.guidedDraft;
+  const step = state.setupStep;
+  const steps = ["Basics", "Size", "World", "Friends", "Finish"];
+  $("setup").innerHTML = `
+    <div class="setup-flow">
+      <div class="setup-flow-head">
+        <button type="button" onclick="backToSetupChoice()">Back</button>
+        <div>
+          <p class="eyebrow">Guided setup</p>
+          <h2>Step ${step}: ${steps[step - 1]}</h2>
+          <p class="muted">${guidedStepHelp(step)}</p>
+        </div>
+      </div>
+      <div class="stepper">${steps.map((label, index) => `<span class="${index + 1 === step ? "active" : index + 1 < step ? "done" : ""}">${index + 1}. ${label}</span>`).join("")}</div>
+      <form id="guided-form" class="card">
+        ${guidedStepFields(step, draft)}
+        <div class="actions" style="margin-top:18px">
+          ${step > 1 ? `<button type="button" onclick="guidedBack()">Back</button>` : ""}
+          ${step < 5 ? `<button class="primary" type="button" onclick="guidedNext()">Next Step</button>` : `<button id="guided-create-button" class="primary" type="button" onclick="guidedCreateServer()">Create Server</button>`}
+        </div>
+        <div id="setup-progress" class="progress-card active hidden" style="margin-top:16px">
+          <div class="progress-card-head">
+            <div>
+              <p class="eyebrow">Creating</p>
+              <h3>Setting up your server</h3>
+            </div>
+            <span class="spinner" aria-hidden="true"></span>
+          </div>
+          <p>Downloading Minecraft and writing safe defaults. This can take a few minutes.</p>
+          <div class="progress-track indeterminate" role="progressbar"><div class="progress-fill"></div></div>
+          <p class="muted">Keep this page open. MineHost Helper will move you to the dashboard when it is done.</p>
+        </div>
+      </form>
+    </div>`;
+  if (step === 1) {
+    loadVersions("guided-version-select", draft.version);
+  }
+}
+
+function guidedStepHelp(step) {
+  return {
+    1: "Name the server and pick a Minecraft version. Latest stable is best for most families.",
+    2: "Choose how much memory to give Minecraft and how many friends can join.",
+    3: "Pick the world name and basic gameplay rules.",
+    4: "Choose the port and friend access options. The default port is easiest.",
+    5: "Review the safe defaults, accept the Minecraft EULA, then create the server.",
+  }[step];
+}
+
+function option(value, label, selected) {
+  return `<option value="${escapeHtml(value)}" ${String(value) === String(selected) ? "selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
+function checked(value) {
+  return value ? "checked" : "";
+}
+
+function guidedStepFields(step, draft) {
+  if (step === 1) {
+    return `
+      <div class="form-grid">
+        <label class="field">Server name<input name="name" required value="${escapeHtml(draft.name)}" placeholder="Family Minecraft"></label>
+        <label class="field">Minecraft version<select name="version" id="guided-version-select"><option value="latest">Latest stable release</option></select></label>
+      </div>
+      <p class="callout info">Use a name people recognize. You can rename it later.</p>`;
+  }
+  if (step === 2) {
+    return `
+      <div class="choice-grid compact">
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="2048" ${draft.ramChoice === "2048" ? "checked" : ""}><strong>2 GB</strong><span>Small server, a few friends.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="4096" ${draft.ramChoice === "4096" ? "checked" : ""}><strong>4 GB</strong><span>Recommended for most servers.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="6144" ${draft.ramChoice === "6144" ? "checked" : ""}><strong>6 GB</strong><span>Bigger worlds or more players.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="custom" ${draft.ramChoice === "custom" ? "checked" : ""}><strong>Custom</strong><span>Choose your own memory amount.</span></label>
+      </div>
+      <div class="form-grid" style="margin-top:16px">
+        <label class="field">Custom RAM MB<input name="customRam" type="number" min="512" max="65536" value="${escapeHtml(draft.customRam)}"></label>
+        <label class="field">Max players<input name="max_players" type="number" min="1" max="200" value="${escapeHtml(draft.max_players)}"></label>
+      </div>`;
+  }
+  if (step === 3) {
+    return `
+      <div class="form-grid">
+        <label class="field">World name<input name="world_name" value="${escapeHtml(draft.world_name)}"></label>
+        <label class="field">Gamemode<select name="gamemode">
+          ${option("survival", "Survival", draft.gamemode)}
+          ${option("creative", "Creative", draft.gamemode)}
+          ${option("adventure", "Adventure", draft.gamemode)}
+          ${option("spectator", "Spectator", draft.gamemode)}
+        </select></label>
+        <label class="field">Difficulty<select name="difficulty">
+          ${option("peaceful", "Peaceful", draft.difficulty)}
+          ${option("easy", "Easy", draft.difficulty)}
+          ${option("normal", "Normal", draft.difficulty)}
+          ${option("hard", "Hard", draft.difficulty)}
+        </select></label>
+        <label class="field">Message of the day<input name="motd" value="${escapeHtml(draft.motd)}"></label>
+      </div>`;
+  }
+  if (step === 4) {
+    return `
+      <div class="form-grid">
+        <label class="field">Minecraft port<input name="port" type="number" min="1" max="65535" value="${escapeHtml(draft.port)}"></label>
+        <label class="field"><span><input name="online_mode" type="checkbox" ${checked(draft.online_mode)}> Require real Minecraft accounts</span></label>
+        <label class="field"><span><input name="whitelist" type="checkbox" ${checked(draft.whitelist)}> Use a whitelist</span></label>
+        <label class="field"><span><input name="command_blocks" type="checkbox" ${checked(draft.command_blocks)}> Allow command blocks</span></label>
+      </div>
+      <p class="callout">Keep port <code>25565</code> unless you have a reason to change it. Friends outside your house still need router forwarding.</p>`;
+  }
+  return `
+    <div class="review-grid">
+      ${quickStat("Name", draft.name)}
+      ${quickStat("Version", draft.version === "latest" ? "Latest stable" : draft.version)}
+      ${quickStat("RAM", `${draft.ramChoice === "custom" ? draft.customRam : draft.ramChoice} MB`)}
+      ${quickStat("Port", draft.port)}
+      ${quickStat("Mode", draft.gamemode)}
+      ${quickStat("Difficulty", draft.difficulty)}
+    </div>
+    <p class="callout">Minecraft requires EULA acceptance before the server can start. MineHost Helper writes <code>eula=true</code> only after you explicitly check this box.</p>
+    <label class="field"><span><input name="accepted_eula" type="checkbox" ${checked(draft.accepted_eula)} required> I accept the Minecraft EULA</span></label>`;
+}
+
+function saveGuidedStep() {
+  const form = $("guided-form");
+  if (!form) return true;
+  const data = new FormData(form);
+  const step = state.setupStep;
+  const draft = state.guidedDraft;
+  if (step === 1) {
+    draft.name = String(data.get("name") || "").trim();
+    draft.version = String(data.get("version") || "latest");
+    if (!draft.name) {
+      toast("Give the server a name first.", "error");
+      return false;
+    }
+  }
+  if (step === 2) {
+    draft.ramChoice = String(data.get("ramChoice") || "4096");
+    draft.customRam = Number(data.get("customRam") || 4096);
+    draft.max_players = Number(data.get("max_players") || 10);
+  }
+  if (step === 3) {
+    draft.world_name = String(data.get("world_name") || "world").trim() || "world";
+    draft.gamemode = String(data.get("gamemode") || "survival");
+    draft.difficulty = String(data.get("difficulty") || "normal");
+    draft.motd = String(data.get("motd") || "A MineHost Helper server");
+  }
+  if (step === 4) {
+    draft.port = Number(data.get("port") || 25565);
+    draft.online_mode = data.has("online_mode");
+    draft.whitelist = data.has("whitelist");
+    draft.command_blocks = data.has("command_blocks");
+  }
+  if (step === 5) {
+    draft.accepted_eula = data.has("accepted_eula");
+    if (!draft.accepted_eula) {
+      toast("Accept the Minecraft EULA before creating the server.", "error");
+      return false;
+    }
+  }
+  return true;
+}
+
+function guidedNext() {
+  if (!saveGuidedStep()) return;
+  state.setupStep = Math.min(5, state.setupStep + 1);
+  renderGuidedSetup();
+}
+
+function guidedBack() {
+  saveGuidedStep();
+  state.setupStep = Math.max(1, state.setupStep - 1);
+  renderGuidedSetup();
+}
+
+function guidedPayload() {
+  const draft = state.guidedDraft;
+  const ramMb = draft.ramChoice === "custom" ? Number(draft.customRam) : Number(draft.ramChoice);
+  return {
+    name: draft.name,
+    version: draft.version,
+    ram_mb: ramMb,
+    port: Number(draft.port),
+    world_name: draft.world_name,
+    gamemode: draft.gamemode,
+    difficulty: draft.difficulty,
+    online_mode: draft.online_mode,
+    whitelist: draft.whitelist,
+    command_blocks: draft.command_blocks,
+    max_players: Number(draft.max_players),
+    motd: draft.motd,
+    accepted_eula: draft.accepted_eula,
+  };
+}
+
+async function guidedCreateServer() {
+  if (!saveGuidedStep()) return;
+  const button = $("guided-create-button");
+  const progress = $("setup-progress");
+  await createServer(guidedPayload(), button, progress);
+}
+
+function renderManualSetup() {
+  $("setup").innerHTML = `
+    <div class="setup-flow">
+      <div class="setup-flow-head">
+        <button type="button" onclick="backToSetupChoice()">Back</button>
+        <div>
+          <p class="eyebrow">Manual setup</p>
+          <h2>One-page server setup</h2>
+          <p class="muted">Advanced path. Use this if you already know the settings you want.</p>
+        </div>
+      </div>
       <form id="setup-form" class="card">
-        <h2>Create a Minecraft server</h2>
-        <p class="muted">Choose simple defaults now. You can change settings later without editing files.</p>
         <div class="form-grid">
           <label class="field">Server name<input name="name" required value="Family Minecraft"></label>
-          <label class="field">Minecraft version<select name="version" id="version-select"><option value="latest">Latest stable release</option></select></label>
+          <label class="field">Minecraft version<select name="version" id="manual-version-select"><option value="latest">Latest stable release</option></select></label>
           <label class="field">RAM<select name="ramChoice"><option value="4096">4 GB recommended</option><option value="2048">2 GB small</option><option value="6144">6 GB larger</option><option value="custom">Custom</option></select></label>
           <label class="field">Custom RAM MB<input name="customRam" type="number" min="512" max="65536" value="4096"></label>
           <label class="field">Server port<input name="port" type="number" min="1" max="65535" value="25565"></label>
           <label class="field">World name<input name="world_name" value="world"></label>
-          <label class="field">Gamemode<select name="gamemode"><option>survival</option><option>creative</option><option>adventure</option><option>spectator</option></select></label>
-          <label class="field">Difficulty<select name="difficulty"><option>easy</option><option>normal</option><option>hard</option><option>peaceful</option></select></label>
+          <label class="field">Gamemode<select name="gamemode"><option value="survival">Survival</option><option value="creative">Creative</option><option value="adventure">Adventure</option><option value="spectator">Spectator</option></select></label>
+          <label class="field">Difficulty<select name="difficulty"><option value="peaceful">Peaceful</option><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label>
           <label class="field">Max players<input name="max_players" type="number" min="1" max="200" value="10"></label>
           <label class="field">Message of the day<input name="motd" value="A MineHost Helper server"></label>
-          <label class="field"><span><input name="online_mode" type="checkbox" checked> Online mode</span></label>
-          <label class="field"><span><input name="whitelist" type="checkbox"> Whitelist</span></label>
-          <label class="field"><span><input name="command_blocks" type="checkbox"> Command blocks</span></label>
+          <label class="field"><span><input name="online_mode" type="checkbox" checked> Require real Minecraft accounts</span></label>
+          <label class="field"><span><input name="whitelist" type="checkbox"> Use a whitelist</span></label>
+          <label class="field"><span><input name="command_blocks" type="checkbox"> Allow command blocks</span></label>
           <label class="field"><span><input name="accepted_eula" type="checkbox" required> I accept the Minecraft EULA</span></label>
         </div>
         <p class="callout">Minecraft requires EULA acceptance before the server can start. MineHost Helper writes <code>eula=true</code> only after you explicitly check this box.</p>
@@ -295,46 +634,19 @@ function renderSetup() {
             </div>
             <span class="spinner" aria-hidden="true"></span>
           </div>
-          <p id="setup-progress-message">Downloading Minecraft and writing safe defaults. This can take a few minutes.</p>
+          <p>Downloading Minecraft and writing safe defaults. This can take a few minutes.</p>
           <div class="progress-track indeterminate" role="progressbar"><div class="progress-fill"></div></div>
           <p class="muted">Keep this page open. MineHost Helper will move you to the dashboard when it is done.</p>
         </div>
       </form>
-      <div class="card">
-        <h2>First run checklist</h2>
-        <p>MineHost Helper will:</p>
-        <p class="muted">Download the selected server jar from Mojang, use bundled or system Java, write safe server.properties, and keep files in this folder.</p>
-        <button onclick="installJava()">Download Temurin Java Now</button>
-        <div id="java-status" class="muted" style="margin-top:12px">Checking Java...</div>
-      </div>
-      <div class="card">
-        <h2>Already have a server?</h2>
-        <p class="muted">MineHost Helper can look for existing Minecraft Java server folders on this PC and add one to the Dashboard.</p>
-        <p class="callout info">It will not move or delete your world. If the server is already running somewhere else, stop it first, then start it from MineHost Helper.</p>
-        <button onclick="scanExistingServers()">Find Existing Servers</button>
-        <div id="discovery-results" class="stack" style="margin-top:14px"></div>
-      </div>
     </div>`;
-  loadVersions();
-  loadJavaStatus();
+  loadVersions("manual-version-select");
   $("setup-form").addEventListener("submit", createServerFromForm);
-}
-
-async function loadVersions() {
-  try {
-    const data = await api("/api/minecraft/versions");
-    const select = $("version-select");
-    select.innerHTML = `<option value="latest">Latest stable release (${data.latest})</option>`;
-    data.releases.forEach((version) => {
-      select.insertAdjacentHTML("beforeend", `<option value="${version.id}">${version.id}</option>`);
-    });
-  } catch (error) {
-    toast(`Version list unavailable: ${error.message}`, "error");
-  }
 }
 
 async function scanExistingServers() {
   const target = $("discovery-results");
+  if (!target) return;
   target.innerHTML = `<p class="muted"><span class="spinner inline" aria-hidden="true"></span> Searching common folders like Desktop, Downloads, Documents, and Games...</p>`;
   try {
     state.discoveredServers = await api("/api/servers/discovery");
@@ -346,8 +658,9 @@ async function scanExistingServers() {
 
 function renderDiscoveryResults() {
   const target = $("discovery-results");
+  if (!target) return;
   if (!state.discoveredServers.length) {
-    target.innerHTML = `<p class="callout">No existing Minecraft Java server folders were found in common locations. You can still create a new server above.</p>`;
+    target.innerHTML = `<p class="callout">No existing Minecraft Java server folders were found in common locations. You can still create a new guided setup instead.</p>`;
     return;
   }
   target.innerHTML = state.discoveredServers.map((server, index) => `
@@ -355,7 +668,7 @@ function renderDiscoveryResults() {
       <div>
         <strong>${escapeHtml(server.name)}</strong>
         <p class="muted">${escapeHtml(server.path)}</p>
-        <p class="muted">Jar: ${escapeHtml(server.jar_name || "Unknown")} · Port: ${escapeHtml(server.port)} · EULA: ${server.eula_accepted ? "accepted" : "not accepted yet"}</p>
+        <p class="muted">Jar: ${escapeHtml(server.jar_name || "Unknown")} | Port: ${escapeHtml(server.port)} | EULA: ${server.eula_accepted ? "accepted" : "not accepted yet"}</p>
       </div>
       <button ${server.already_added ? "disabled" : ""} onclick="adoptExistingServer(${index})">${server.already_added ? "Already Added" : "Add to MineHost"}</button>
     </div>
@@ -373,25 +686,27 @@ async function adoptExistingServer(index) {
     });
     state.selectedId = server.id;
     localStorage.setItem("selectedServer", server.id);
-    await loadServers();
+    await refreshData();
     go("dashboard");
   });
 }
 
 async function loadJavaStatus() {
+  const target = $("java-status");
+  if (!target) return;
   try {
     const data = await api("/api/java/status");
-    $("java-status").textContent = data.available ? `Java ready: ${data.version}` : "Java not found. MineHost Helper can download Temurin Java.";
+    target.textContent = data.available ? `Java ready: ${data.version}` : "Java not found. MineHost Helper can download Temurin Java.";
   } catch {
-    $("java-status").textContent = "Java status could not be checked.";
+    target.textContent = "Java status could not be checked.";
   }
 }
 
 async function installJava() {
   await runAction("Java is ready", async () => {
-    $("java-status").innerHTML = `<span class="spinner inline" aria-hidden="true"></span> Downloading Java. This can take a few minutes.`;
+    if ($("java-status")) $("java-status").innerHTML = `<span class="spinner inline" aria-hidden="true"></span> Downloading Java. This can take a few minutes.`;
     const data = await api("/api/java/install", { method: "POST" });
-    $("java-status").textContent = `Java ready: ${data.version}`;
+    if ($("java-status")) $("java-status").textContent = `Java ready: ${data.version}`;
   });
 }
 
@@ -399,9 +714,6 @@ async function createServerFromForm(event) {
   event.preventDefault();
   const button = $("create-server-button");
   const progress = $("setup-progress");
-  button.disabled = true;
-  button.textContent = "Creating...";
-  progress.classList.remove("hidden");
   const form = new FormData(event.target);
   const ramChoice = form.get("ramChoice");
   const payload = {
@@ -419,16 +731,33 @@ async function createServerFromForm(event) {
     motd: form.get("motd"),
     accepted_eula: form.has("accepted_eula"),
   };
+  await createServer(payload, button, progress);
+}
+
+async function createServer(payload, button, progress) {
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Creating...";
+  }
+  if (progress) {
+    progress.classList.remove("hidden");
+  }
   try {
     const server = await api("/api/servers", { method: "POST", body: JSON.stringify(payload) });
     state.selectedId = server.id;
+    localStorage.setItem("selectedServer", server.id);
+    await refreshData();
     toast("Server created");
     go("dashboard");
   } catch (error) {
     toast(error.message, "error");
-    button.disabled = false;
-    button.textContent = "Create Server";
-    progress.classList.add("hidden");
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Create Server";
+    }
+    if (progress) {
+      progress.classList.add("hidden");
+    }
   }
 }
 
@@ -1045,6 +1374,10 @@ async function copyText(text) {
 
 function go(page) {
   location.hash = page;
+  if (page === "setup") {
+    state.setupMode = "choice";
+    state.setupStep = 1;
+  }
 }
 
 async function render() {
@@ -1052,13 +1385,18 @@ async function render() {
   state.consoleTimer = null;
   clearInterval(state.dashboardTimer);
   state.dashboardTimer = null;
-  state.page = location.hash.replace("#", "") || "dashboard";
-  if (!titles[state.page]) state.page = "dashboard";
-  $("page-title").textContent = titles[state.page];
-  document.querySelectorAll(".page").forEach((node) => node.classList.toggle("hidden", node.id !== state.page));
-  document.querySelectorAll("nav a").forEach((node) => node.classList.toggle("active", node.dataset.page === state.page));
+  const requestedPage = location.hash.replace("#", "") || "dashboard";
+  state.page = titles[requestedPage] ? requestedPage : "dashboard";
   try {
     await refreshData();
+    if (!state.servers.length && state.page === "dashboard") {
+      state.page = "setup";
+      state.setupMode = "choice";
+      state.setupStep = 1;
+    }
+    $("page-title").textContent = titles[state.page];
+    document.querySelectorAll(".page").forEach((node) => node.classList.toggle("hidden", node.id !== state.page));
+    document.querySelectorAll("nav a").forEach((node) => node.classList.toggle("active", node.dataset.page === state.page));
     if (state.page === "dashboard") {
       renderDashboard();
       startDashboardPolling();
@@ -1072,6 +1410,9 @@ async function render() {
     if (state.page === "networking") await renderNetworking();
     if (state.page === "help") await renderHelp();
   } catch (error) {
+    $("page-title").textContent = titles[state.page] || "MineHost Helper";
+    document.querySelectorAll(".page").forEach((node) => node.classList.toggle("hidden", node.id !== state.page));
+    document.querySelectorAll("nav a").forEach((node) => node.classList.toggle("active", node.dataset.page === state.page));
     $(state.page).innerHTML = `<div class="card"><h2>Could not load this page</h2><p class="muted">${error.message}</p></div>`;
     toast(error.message, "error");
   }
