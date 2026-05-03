@@ -255,3 +255,43 @@ def test_public_port_status_does_not_check_external_service_by_default(monkeypat
     assert status["reachable"] is None
     assert status["checked_externally"] is False
     assert status["state"] == "Ready to test"
+
+
+def test_discovery_finds_existing_server_folder(tmp_path: Path) -> None:
+    from backend.server_discovery import find_server_jar, server_candidate
+
+    write_properties(tmp_path, {"server-port": 25570, "level-name": "family-world"}, make_backup=False)
+    (tmp_path / "paper-1.21.jar").write_text("fake jar", encoding="utf-8")
+    (tmp_path / "eula.txt").write_text("eula=true\n", encoding="utf-8")
+    (tmp_path / "family-world").mkdir()
+
+    assert find_server_jar(tmp_path).name == "paper-1.21.jar"
+    candidate = server_candidate(tmp_path)
+
+    assert candidate["port"] == 25570
+    assert candidate["jar_name"] == "paper-1.21.jar"
+    assert candidate["eula_accepted"] is True
+    assert candidate["world_exists"] is True
+
+
+def test_adopt_existing_server_records_external_path_and_jar(tmp_path: Path) -> None:
+    from backend.models import ServerAdoptRequest
+    from backend.server_manager import ServerManager
+
+    write_properties(tmp_path, {"server-port": 25571}, make_backup=False)
+    (tmp_path / "fabric-server.jar").write_text("fake jar", encoding="utf-8")
+
+    manager = ServerManager.__new__(ServerManager)
+    manager._lock = threading.RLock()
+    manager._processes = {}
+    manager._operations = {}
+    manager._servers = {}
+    manager._save = lambda: None
+
+    adopted = manager.adopt_server(ServerAdoptRequest(path=str(tmp_path), name="Imported Server", ram_mb=2048))
+
+    assert adopted["external"] is True
+    assert adopted["path"] == str(tmp_path.resolve())
+    assert adopted["jar_name"] == "fabric-server.jar"
+    assert adopted["port"] == 25571
+    assert manager._server_jar_path(adopted["id"]).name == "fabric-server.jar"

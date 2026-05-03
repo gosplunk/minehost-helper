@@ -67,6 +67,18 @@ Local data folders:
 
 MineHost Helper downloads the selected server jar using Mojang's official version manifest and verifies SHA1 when Mojang provides it.
 
+## Add An Existing Server
+
+If you already have a Minecraft Java server folder on this PC:
+
+1. Open Setup Wizard.
+2. Click Find Existing Servers.
+3. Choose Add to MineHost on the server you want.
+4. Stop that server if it is already running somewhere else.
+5. Start it from the Dashboard.
+
+MineHost Helper looks in common folders such as Desktop, Downloads, Documents, Games, AppData, and `D:\Dev`. It adopts the existing folder in place, so it does not move or delete your world. The folder must contain `server.properties` and a server `.jar`.
+
 ## Start, Stop, Restart
 
 Use the Dashboard buttons:

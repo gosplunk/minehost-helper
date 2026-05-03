@@ -8,12 +8,14 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import app_settings, firewall, java_manager, minecraft_downloader, networking
+from .server_discovery import scan_existing_servers
 from .config import APP_NAME, HOST, PORT, STATIC_DIR, ensure_directories
 from .models import (
     CommandRequest,
     AppSettingsUpdateRequest,
     FirewallFixRequest,
     PropertiesUpdateRequest,
+    ServerAdoptRequest,
     ServerCreateRequest,
     VersionChangeRequest,
 )
@@ -24,7 +26,7 @@ ensure_directories()
 app = FastAPI(
     title=APP_NAME,
     description="Local Windows-first Minecraft Java server manager.",
-    version="0.1.0",
+    version="0.1.5",
 )
 
 
@@ -114,6 +116,26 @@ def list_servers() -> list[dict[str, Any]]:
 def create_server(data: ServerCreateRequest) -> dict[str, Any]:
     try:
         return server_manager.create_server(data)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/servers/discovery")
+def discover_servers() -> list[dict[str, Any]]:
+    try:
+        existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
+        return [
+            {**candidate, "already_added": candidate["path"].lower() in existing_paths}
+            for candidate in scan_existing_servers()
+        ]
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.post("/api/servers/adopt")
+def adopt_server(data: ServerAdoptRequest) -> dict[str, Any]:
+    try:
+        return server_manager.adopt_server(data)
     except Exception as exc:
         raise _api_error(exc)
 

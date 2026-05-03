@@ -54,6 +54,22 @@ class ServerCreateRequest(BaseModel):
         return value
 
 
+class ServerAdoptRequest(BaseModel):
+    path: str = Field(min_length=3, max_length=1000)
+    name: str | None = Field(default=None, max_length=80)
+    ram_mb: int = 4096
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, value: str | None) -> str | None:
+        return sanitize_server_name(value) if value else value
+
+    @field_validator("ram_mb")
+    @classmethod
+    def clean_ram(cls, value: int) -> int:
+        return validate_ram_mb(value)
+
+
 class ServerInfo(BaseModel):
     id: str
     name: str

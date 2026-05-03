@@ -763,6 +763,11 @@ code {
   gap: 10px;
 }
 
+.stack {
+  display: grid;
+  gap: 10px;
+}
+
 .list-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -774,6 +779,14 @@ code {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent),
     var(--list-bg);
+}
+
+.discovery-item {
+  align-items: start;
+}
+
+.discovery-item p {
+  margin: 6px 0 0;
 }
 
 .callout {

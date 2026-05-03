@@ -6,6 +6,7 @@ const state = {
   consoleTimer: null,
   dashboardTimer: null,
   theme: document.documentElement.dataset.theme || "light",
+  discoveredServers: [],
 };
 
 const titles = {
@@ -291,6 +292,13 @@ function renderSetup() {
         <button onclick="installJava()">Download Temurin Java Now</button>
         <div id="java-status" class="muted" style="margin-top:12px">Checking Java...</div>
       </div>
+      <div class="card">
+        <h2>Already have a server?</h2>
+        <p class="muted">MineHost Helper can look for existing Minecraft Java server folders on this PC and add one to the Dashboard.</p>
+        <p class="callout info">It will not move or delete your world. If the server is already running somewhere else, stop it first, then start it from MineHost Helper.</p>
+        <button onclick="scanExistingServers()">Find Existing Servers</button>
+        <div id="discovery-results" class="stack" style="margin-top:14px"></div>
+      </div>
     </div>`;
   loadVersions();
   loadJavaStatus();
@@ -308,6 +316,51 @@ async function loadVersions() {
   } catch (error) {
     toast(`Version list unavailable: ${error.message}`, "error");
   }
+}
+
+async function scanExistingServers() {
+  const target = $("discovery-results");
+  target.innerHTML = `<p class="muted"><span class="spinner inline" aria-hidden="true"></span> Searching common folders like Desktop, Downloads, Documents, and Games...</p>`;
+  try {
+    state.discoveredServers = await api("/api/servers/discovery");
+    renderDiscoveryResults();
+  } catch (error) {
+    target.innerHTML = `<p class="callout danger">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderDiscoveryResults() {
+  const target = $("discovery-results");
+  if (!state.discoveredServers.length) {
+    target.innerHTML = `<p class="callout">No existing Minecraft Java server folders were found in common locations. You can still create a new server above.</p>`;
+    return;
+  }
+  target.innerHTML = state.discoveredServers.map((server, index) => `
+    <div class="list-item discovery-item">
+      <div>
+        <strong>${escapeHtml(server.name)}</strong>
+        <p class="muted">${escapeHtml(server.path)}</p>
+        <p class="muted">Jar: ${escapeHtml(server.jar_name || "Unknown")} · Port: ${escapeHtml(server.port)} · EULA: ${server.eula_accepted ? "accepted" : "not accepted yet"}</p>
+      </div>
+      <button ${server.already_added ? "disabled" : ""} onclick="adoptExistingServer(${index})">${server.already_added ? "Already Added" : "Add to MineHost"}</button>
+    </div>
+  `).join("");
+}
+
+async function adoptExistingServer(index) {
+  const candidate = state.discoveredServers[index];
+  if (!candidate) return;
+  const name = prompt("What should MineHost Helper call this server?", candidate.name) || candidate.name;
+  await runAction("Existing server added", async () => {
+    const server = await api("/api/servers/adopt", {
+      method: "POST",
+      body: JSON.stringify({ path: candidate.path, name, ram_mb: 4096 }),
+    });
+    state.selectedId = server.id;
+    localStorage.setItem("selectedServer", server.id);
+    await loadServers();
+    go("dashboard");
+  });
 }
 
 async function loadJavaStatus() {

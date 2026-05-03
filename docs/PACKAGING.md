@@ -133,6 +133,7 @@ Before publishing a GitHub release:
 - Install into a clean writable folder.
 - Verify first launch opens the browser.
 - Verify create/start/stop server flow.
+- Verify Find Existing Servers can adopt a test server folder without moving it.
 - Verify uninstaller appears in Apps & Features.
 - Verify uninstall removes shortcuts and startup entry.
 - Document SmartScreen expectations in release notes.

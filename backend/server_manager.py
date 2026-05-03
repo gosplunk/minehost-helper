@@ -21,8 +21,9 @@ except Exception:  # pragma: no cover - psutil is optional at runtime.
 from .config import BACKUPS_DIR, LOGS_DIR, SERVERS_DIR, ensure_directories
 from .java_manager import get_java_path, install_temurin_jre, required_java_version_for_jar
 from .minecraft_downloader import download_server_jar
-from .models import ServerCreateRequest
+from .models import ServerAdoptRequest, ServerCreateRequest
 from .properties_manager import properties_from_create_request, read_properties, write_properties
+from .server_discovery import find_server_jar, server_candidate
 from .storage import servers_store
 from .utils import ensure_child_path, slugify_name
 
@@ -54,7 +55,18 @@ class ServerManager:
     def _server_dir(self, server_id: str) -> Path:
         if server_id not in self._servers:
             raise KeyError("Server not found")
-        return ensure_child_path(SERVERS_DIR, Path(self._servers[server_id]["path"]))
+        stored = Path(self._servers[server_id]["path"])
+        if stored.is_absolute():
+            return stored.resolve()
+        return ensure_child_path(SERVERS_DIR, stored)
+
+    def _server_jar_name(self, server_id: str) -> str:
+        return str(self._servers[server_id].get("jar_name") or "server.jar")
+
+    def _server_jar_path(self, server_id: str) -> Path:
+        server_dir = self._server_dir(server_id)
+        jar_name = self._server_jar_name(server_id)
+        return ensure_child_path(server_dir, server_dir / jar_name)
 
     def _set_status(self, server_id: str, status: str, error: str | None = None) -> None:
         with self._lock:
@@ -283,6 +295,46 @@ class ServerManager:
             self._save()
         return dict(server)
 
+    def adopt_server(self, data: ServerAdoptRequest) -> dict[str, Any]:
+        server_dir = Path(data.path).expanduser().resolve()
+        if not server_dir.exists() or not server_dir.is_dir():
+            raise ValueError("Existing server folder was not found")
+        if not (server_dir / "server.properties").exists():
+            raise ValueError("This folder does not contain server.properties")
+        jar = find_server_jar(server_dir)
+        if not jar:
+            raise ValueError("This folder does not contain a Minecraft server .jar file")
+        candidate = server_candidate(server_dir)
+        properties = read_properties(server_dir)
+        base_slug = slugify_name(data.name or candidate["name"])
+        slug = base_slug
+        counter = 2
+        with self._lock:
+            existing_paths = {str(Path(item["path"]).resolve()).lower() for item in self._servers.values()}
+            if str(server_dir).lower() in existing_paths:
+                raise ValueError("This server folder has already been added to MineHost Helper")
+            while slug in self._servers:
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            now = self._now()
+            server = {
+                "id": slug,
+                "name": data.name or candidate["name"],
+                "version": "existing",
+                "ram_mb": data.ram_mb,
+                "port": int(properties.get("server-port", candidate["port"])),
+                "path": str(server_dir),
+                "jar_name": jar.name,
+                "external": True,
+                "status": "stopped",
+                "created_at": now,
+                "updated_at": now,
+                "last_error": None,
+            }
+            self._servers[slug] = server
+            self._save()
+        return dict(server)
+
     def _reader_thread(self, managed: ManagedProcess, log_path: Path) -> None:
         with log_path.open("a", encoding="utf-8", errors="replace") as log_file:
             assert managed.process.stdout is not None
@@ -356,7 +408,8 @@ class ServerManager:
             if server_id in self._processes and self._processes[server_id].process.poll() is None:
                 return server
             server_dir = self._server_dir(server_id)
-            required_java = required_java_version_for_jar(server_dir / "server.jar")
+            jar_path = self._server_jar_path(server_id)
+            required_java = required_java_version_for_jar(jar_path)
             java = get_java_path(required_java)
             if not java:
                 try:
@@ -393,7 +446,7 @@ class ServerManager:
                 f"-Xmx{ram_mb}M",
                 f"-Xms{ram_mb}M",
                 "-jar",
-                "server.jar",
+                jar_path.name,
                 "nogui",
             ]
             creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -523,7 +576,7 @@ class ServerManager:
             )
             version_id, jar_path = download_server_jar(version)
             server_dir = self._server_dir(server_id)
-            current_jar = server_dir / "server.jar"
+            current_jar = self._server_jar_path(server_id)
             if current_jar.exists():
                 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
                 backup_name = f"server-{server.get('version', 'unknown')}-{timestamp}.jar.bak"
@@ -549,7 +602,7 @@ class ServerManager:
         backup_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         zip_path = backup_dir / f"{server_id}-{timestamp}.zip"
-        skip_names = {"server.jar", "libraries", "crash-reports", "cache", "versions"}
+        skip_names = {"server.jar", self._server_jar_name(server_id), "libraries", "crash-reports", "cache", "versions"}
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path in server_dir.rglob("*"):
                 relative = path.relative_to(server_dir)
@@ -590,7 +643,7 @@ class ServerManager:
             raise ValueError("Backup was not found")
         safety_backup = self.create_backup(server_id)
         for child in server_dir.iterdir():
-            if child.name == "server.jar":
+            if child.name == self._server_jar_name(server_id):
                 continue
             if child.is_dir():
                 shutil.rmtree(child)
