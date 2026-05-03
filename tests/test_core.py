@@ -64,6 +64,14 @@ def test_java_class_major_mapping() -> None:
     assert class_major_to_java_version(69) == 25
 
 
+def test_java_download_detects_windows_certificate_errors() -> None:
+    from backend import java_manager
+
+    error = RuntimeError("SSL: CERTIFICATE_VERIFY_FAILED unable to get local issuer certificate")
+
+    assert java_manager._is_certificate_error(error) is True
+
+
 def test_installer_parses_java_feature_versions() -> None:
     from installer.bootstrap_installer import parse_java_feature_version
 

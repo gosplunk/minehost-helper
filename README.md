@@ -26,6 +26,8 @@ The portable ZIP contains no MineHost Helper `.exe`, which avoids the PyInstalle
 
 Friend Mode signing is for private friends/family who trust you. It is not public Microsoft code-signing reputation. If Defender blocks the installer with `WinError 225`, use the portable ZIP or submit the exact file to Microsoft as a false positive.
 
+If Java setup says `SSL Certificate verify failed` or `unable to get local issuer certificate`, update to the newest release and try again. MineHost Helper retries Temurin Java downloads with Windows-native certificate handling when Python cannot validate the certificate chain.
+
 **License:** MineHost Helper is free to install and use, but it is **not open source**. The source is public for transparency. Modified versions, redistributed forks, rebranded builds, and resale are not allowed. See [LICENSE.md](LICENSE.md).
 
 With the portable ZIP, first launch creates a local Python environment, installs MineHost Helper dependencies, creates a local web login, and opens the browser UI. It still checks for Java 25+ and can prepare the bundled Eclipse Temurin Java runtime when Java is missing.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import time
 import urllib.error
@@ -138,10 +139,57 @@ def status() -> dict[str, str | bool | None]:
     }
 
 
+def _powershell_quote(value: str | Path) -> str:
+    return str(value).replace("'", "''")
+
+
+def _is_certificate_error(exc: Exception) -> bool:
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        return True
+    if isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, ssl.SSLCertVerificationError):
+        return True
+    text = str(exc).lower()
+    return "certificate verify failed" in text or "unable to get local issuer certificate" in text
+
+
+def _download_file_with_powershell(url: str, destination: Path) -> None:
+    powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+    if not powershell:
+        raise RuntimeError("PowerShell was not found for Windows-native download fallback")
+
+    temp_path = destination.with_suffix(destination.suffix + ".download")
+    script = f"""
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$headers = @{{
+  'User-Agent' = '{_powershell_quote(DOWNLOAD_HEADERS["User-Agent"])}'
+  'Accept' = '{_powershell_quote(DOWNLOAD_HEADERS["Accept"])}'
+}}
+Invoke-WebRequest -Uri '{_powershell_quote(url)}' -OutFile '{_powershell_quote(temp_path)}' -Headers $headers -UseBasicParsing -MaximumRedirection 10
+"""
+    result = subprocess.run(
+        [powershell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+        **hidden_subprocess_kwargs(),
+    )
+    if result.returncode != 0:
+        output = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"Windows-native download fallback failed: {output or result.returncode}")
+    if not temp_path.exists() or temp_path.stat().st_size < 1024 * 1024:
+        temp_path.unlink(missing_ok=True)
+        raise RuntimeError("Windows-native download fallback produced an unexpectedly small Java archive")
+    temp_path.replace(destination)
+
+
 def _download_file(url: str, destination: Path, attempts: int = 3) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp_path = destination.with_suffix(destination.suffix + ".download")
     last_error: Exception | None = None
+    saw_certificate_error = False
     for attempt in range(1, attempts + 1):
         try:
             request = urllib.request.Request(url, headers=DOWNLOAD_HEADERS)
@@ -163,10 +211,24 @@ def _download_file(url: str, destination: Path, attempts: int = 3) -> None:
                 ) from exc
         except Exception as exc:
             last_error = exc
+            saw_certificate_error = saw_certificate_error or _is_certificate_error(exc)
             if temp_path.exists():
                 temp_path.unlink(missing_ok=True)
+            if saw_certificate_error and os.name == "nt":
+                break
         if attempt < attempts:
             time.sleep(1.5 * attempt)
+
+    if saw_certificate_error and os.name == "nt":
+        try:
+            _download_file_with_powershell(url, destination)
+            return
+        except Exception as fallback_error:
+            raise RuntimeError(
+                "Could not download Eclipse Temurin Java because Windows/Python could not verify the SSL certificate, "
+                f"and the Windows-native fallback also failed: {fallback_error}"
+            ) from fallback_error
+
     raise RuntimeError(f"Could not download Eclipse Temurin Java: {last_error}") from last_error
 
 

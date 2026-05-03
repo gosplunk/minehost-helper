@@ -40,6 +40,14 @@ Friends must run `Install MineHost Helper Friend Publisher Certificate.bat` firs
 
 This is not a public-trust solution. It only works for friends who explicitly trust that certificate.
 
+## Java Download SSL Certificate Errors
+
+If Temurin Java download fails with `SSL Certificate verify failed` or `unable to get local issuer certificate`, the machine may have a Python/OpenSSL certificate store problem even though Windows itself trusts the site.
+
+MineHost Helper retries Temurin downloads with Windows PowerShell `Invoke-WebRequest`, which uses Windows-native certificate/proxy handling. It does not disable certificate validation.
+
+If the fallback still fails, check Windows date/time, Windows Update root certificates, work/school proxy filtering, antivirus TLS inspection, or install Temurin manually from `https://adoptium.net/temurin/releases/`.
+
 ## Why It Happens
 
 Early MineHost Helper builds are produced with PyInstaller. PyInstaller creates self-extracting executables that bundle Python, app code, and assets. Unsigned self-extracting binaries with low download reputation are common false-positive targets.

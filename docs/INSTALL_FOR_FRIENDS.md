@@ -146,6 +146,25 @@ Portable fallback steps:
 2. Double click `Start MineHost Helper.bat`.
 3. Follow the browser setup.
 
+## If Java Says SSL Certificate Verify Failed
+
+If you see:
+
+```text
+could not download Eclipse Temurin Java
+SSL Certificate verify failed
+unable to get local issuer certificate
+```
+
+Update to the newest MineHost Helper release and try again. MineHost Helper now retries Java downloads using Windows-native certificate handling when Python cannot verify the certificate chain.
+
+If it still fails:
+
+1. Make sure Windows date and time are correct.
+2. Try a normal home network instead of a school, work, hotel, or filtered network.
+3. Open Windows Update and install pending root certificate/security updates.
+4. Ask the person who gave you MineHost Helper for help before changing antivirus or certificate settings.
+
 ## Common Questions
 
 **Which file do I run first?**
