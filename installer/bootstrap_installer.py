@@ -11,7 +11,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 APP_NAME = "MineHost Helper"
-APP_VERSION = "0.1.1"
+APP_VERSION = "0.1.2"
 PUBLISHER = "MineHost Helper"
 EXE_NAME = "MineHostHelper.exe"
 UNINSTALL_EXE_NAME = "Uninstall MineHost Helper.exe"
@@ -265,8 +265,9 @@ class InstallerUi:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME} Setup")
-        self.root.geometry("660x480")
-        self.root.resizable(False, False)
+        self.root.geometry("720x620")
+        self.root.minsize(680, 540)
+        self.root.resizable(True, True)
         self.root.configure(bg="#fffdf6")
         self.desktop_var = tk.BooleanVar(value=True)
         self.launch_var = tk.BooleanVar(value=True)
@@ -274,6 +275,13 @@ class InstallerUi:
         self.installed_version = read_installed_version()
         self.install_dir_var = tk.StringVar(value=str(self.installed_dir or default_install_dir()))
         self._build()
+        self._fit_window_to_content()
+
+    def _fit_window_to_content(self) -> None:
+        self.root.update_idletasks()
+        width = min(max(720, self.root.winfo_reqwidth() + 24), self.root.winfo_screenwidth() - 80)
+        height = min(max(600, self.root.winfo_reqheight() + 24), self.root.winfo_screenheight() - 80)
+        self.root.geometry(f"{width}x{height}")
 
     def _build(self) -> None:
         frame = tk.Frame(self.root, padx=28, pady=24, bg="#fffdf6")
@@ -293,8 +301,8 @@ class InstallerUi:
                 f"Installed version: {self.installed_version or 'unknown'}\n"
                 f"Installer version: {APP_VERSION}\n"
                 f"Location: {self.installed_dir}\n\n"
-                "Choose Update / Repair to keep Minecraft servers, backups, Java, and settings. "
-                "Choose Clean Install only if you want to erase local MineHost Helper data and start over."
+                "Update / Repair keeps your Minecraft worlds, backups, Java, logs, and settings. "
+                "Clean Install starts over and only runs after a clear warning."
             )
             status_bg = "#eef7e8"
             status_fg = "#1f6d36"
@@ -314,7 +322,7 @@ class InstallerUi:
             fg=status_fg,
             padx=12 if self.installed_dir else 0,
             pady=10 if self.installed_dir else 0,
-            wraplength=590,
+            wraplength=640,
             justify="left",
         ).pack(fill="x", pady=(8, 18))
 
@@ -364,7 +372,7 @@ class InstallerUi:
             fg="#1f6d36",
             padx=12,
             pady=10,
-            wraplength=540,
+            wraplength=620,
             justify="left",
         ).pack(fill="x", pady=(0, 18))
 
