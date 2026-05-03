@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MineHost Helper</title>
+    <script>
+      const savedTheme = localStorage.getItem("minehostTheme");
+      const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = savedTheme || preferredTheme;
+    </script>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">MH</div>
+          <div>
+            <strong>MineHost Helper</strong>
+            <span>Local Minecraft hosting</span>
+          </div>
+        </div>
+        <nav>
+          <a href="#dashboard" data-page="dashboard">Dashboard</a>
+          <a href="#setup" data-page="setup">Setup Wizard</a>
+          <a href="#settings" data-page="settings">Server Settings</a>
+          <a href="#console" data-page="console">Console</a>
+          <a href="#backups" data-page="backups">Backups</a>
+          <a href="#networking" data-page="networking">Networking</a>
+          <a href="#help" data-page="help">Help</a>
+        </nav>
+        <div class="safe-note">
+          Manager UI is bound to this PC only. Do not expose it to the internet.
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Windows-first server manager</p>
+            <h1 id="page-title">Dashboard</h1>
+          </div>
+          <div class="topbar-controls">
+            <label class="server-picker">
+              Server
+              <select id="server-select"></select>
+            </label>
+            <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch color theme">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span id="theme-toggle-text">Dark mode</span>
+            </button>
+          </div>
+        </header>
+
+        <section id="dashboard" class="page"></section>
+        <section id="setup" class="page hidden"></section>
+        <section id="settings" class="page hidden"></section>
+        <section id="console" class="page hidden"></section>
+        <section id="backups" class="page hidden"></section>
+        <section id="networking" class="page hidden"></section>
+        <section id="help" class="page hidden"></section>
+      </main>
+    </div>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

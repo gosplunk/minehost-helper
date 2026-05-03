@@ -1,0 +1,41 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+build/
+dist/
+dist-installer/
+*.spec.bak
+
+# Local app/runtime data
+app_data/
+servers/
+backups/
+runtimes/
+logs/
+launcher-error.log
+*.log
+
+# Frontend future-proofing
+node_modules/
+frontend/dist/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local release archives
+*.zip
+*.7z
+*.msi
+*.msix
