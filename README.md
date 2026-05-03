@@ -1,5 +1,13 @@
 # MineHost Helper
 
+## Download For Windows
+
+**Download the installer:** [MineHostHelperSetup.exe](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe)
+
+Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
+
+If you are viewing a private GitHub repo, you must be signed into a GitHub account that has access to this repository before the download link will work.
+
 MineHost Helper is a Windows-first local web app for running a Minecraft Java server without command-line work after installation. It installs or downloads what it needs, opens a browser UI automatically, creates servers, writes `server.properties`, starts and stops Minecraft, shows logs, creates backups, and guides users through Windows Firewall and router forwarding.
 
 The manager UI binds to `127.0.0.1` by default so only this PC can control it. Do not expose the manager UI to the internet.
