@@ -307,7 +307,7 @@ nav a:hover {
 main {
   width: 100%;
   max-width: 1320px;
-  padding: 34px 34px 128px;
+  padding: 34px 34px 168px;
   z-index: 1;
 }
 
@@ -838,17 +838,20 @@ details,
 
 .quick-drawer {
   position: fixed;
-  left: 306px;
-  right: 22px;
-  bottom: 18px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 6;
-  border: 1px solid var(--line-strong);
-  border-radius: 28px;
+  border-top: 1px solid var(--line-strong);
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 46%),
     linear-gradient(135deg, rgba(var(--panel-rgb), 0.96), rgba(var(--panel-rgb), 0.82)),
     repeating-linear-gradient(45deg, transparent 0 18px, rgba(63, 163, 77, 0.055) 18px 36px);
-  box-shadow: 0 22px 70px rgba(20, 28, 16, 0.24);
+  box-shadow: 0 -14px 40px rgba(20, 28, 16, 0.18);
   backdrop-filter: blur(22px) saturate(1.16);
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
@@ -858,19 +861,19 @@ details,
   position: absolute;
   inset: 0 0 auto;
   height: 5px;
-  border-radius: 28px 28px 0 0;
+  border-radius: 0;
   background: linear-gradient(90deg, var(--grass), var(--grass-2), var(--diamond), var(--gold));
 }
 
 .drawer-handle {
   position: absolute;
   left: 50%;
-  top: -13px;
+  top: -12px;
   width: 82px;
   min-height: 24px;
   padding: 0;
   transform: translateX(-50%);
-  border-radius: 999px;
+  border-radius: 999px 999px 0 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent),
     var(--panel-strong);
