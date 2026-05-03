@@ -2,11 +2,15 @@
 
 ## Download For Windows
 
-**Recommended right now:** [MineHostHelper-Portable.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-Portable.zip)
+**Easy installer for friends:** [Download MineHostHelper-FriendSigned.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-FriendSigned.zip)
+
+This ZIP contains `MineHostHelperSetup-FriendSigned.exe`. Friends should unzip it, run `Install MineHost Helper Friend Publisher Certificate.bat`, approve the Windows prompt, then run `MineHostHelperSetup-FriendSigned.exe`.
+
+**Defender-safe fallback:** [Download MineHostHelper-Portable.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-Portable.zip)
 
 The portable ZIP contains no MineHost Helper `.exe`, which avoids the PyInstaller installer path that Windows Defender may flag on some PCs. Unzip it, then double click `Start MineHost Helper.bat`.
 
-The unsigned installer is paused as the recommended path until releases are signed or cleared by Microsoft.
+Friend Mode signing is for private friends/family who trust you. It is not public Microsoft code-signing reputation. If Defender blocks the installer with `WinError 225`, use the portable ZIP or submit the exact file to Microsoft as a false positive.
 
 **License:** MineHost Helper is free to install and use, but it is **not open source**. The source is public for transparency. Modified versions, redistributed forks, rebranded builds, and resale are not allowed. See [LICENSE.md](LICENSE.md).
 
