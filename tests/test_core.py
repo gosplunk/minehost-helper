@@ -224,3 +224,34 @@ def test_change_version_requires_stopped_server(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="Stop the server"):
         manager.change_version("family", "1.21.8")
+
+
+def test_public_port_status_checks_external_service_when_requested(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import networking
+
+    monkeypatch.setattr(
+        networking,
+        "_external_port_test",
+        lambda port: {"provider": "Test", "status": "OPEN", "ip": "203.0.113.10", "port": port, "ms": 12},
+    )
+
+    status = networking.public_port_status(25565, "203.0.113.10", local_open=True, check_external=True)
+
+    assert status["reachable"] is True
+    assert status["checked_externally"] is True
+    assert status["state"] == "Publicly reachable"
+
+
+def test_public_port_status_does_not_check_external_service_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import networking
+
+    def fail_if_called(port: int) -> dict[str, object]:
+        raise AssertionError("external service should not be called")
+
+    monkeypatch.setattr(networking, "_external_port_test", fail_if_called)
+
+    status = networking.public_port_status(25565, "203.0.113.10", local_open=True)
+
+    assert status["reachable"] is None
+    assert status["checked_externally"] is False
+    assert status["state"] == "Ready to test"

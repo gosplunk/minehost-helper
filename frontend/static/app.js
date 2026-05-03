@@ -689,6 +689,7 @@ async function renderNetworking() {
           <button onclick="copyText('${data.public_ip || "PUBLIC_IP"}:${data.port}')">Copy Server Address</button>
         </div>
         <p class="callout info">${data.public.details}</p>
+        <div id="public-test-result" class="callout hidden" style="margin-top:12px"></div>
       </div>
       <div class="card">
         <h2>Router instructions</h2>
@@ -716,7 +717,13 @@ async function testLocalPort(port) {
 async function testPublicPort(port) {
   await runAction("Public test checked", async () => {
     const data = await api(`/api/networking/public-port-test?port=${port}`);
-    toast(data.details, data.reachable === false ? "error" : "ok");
+    const result = $("public-test-result");
+    const type = data.reachable === true ? "ok" : data.reachable === false ? "error" : "warning";
+    if (result) {
+      result.className = `callout ${type === "error" ? "danger" : type === "warning" ? "warning" : "success"}`;
+      result.innerHTML = `<strong>${escapeHtml(data.state)}</strong><br>${escapeHtml(data.details)}`;
+    }
+    toast(`${data.state}: ${data.details}`, type);
   });
 }
 

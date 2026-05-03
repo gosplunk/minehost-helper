@@ -79,6 +79,13 @@ Fixes:
 
 ## Public Port Testing
 
-The MVP does not rely on random public port-check websites. It checks whether the local Minecraft port is listening and gives the exact address to test from outside your network.
+MineHost Helper first checks whether the local Minecraft port is listening. When you click Test Public Port, it asks an external TCP port-check service to attempt a connection back to your public IP and configured Minecraft port.
 
-Never assume public access works until a real outside client confirms it.
+Possible results:
+
+- Publicly reachable: an outside service confirmed TCP access.
+- Local server not running: start the Minecraft server first.
+- Router forwarding likely missing: the outside service could not connect, so check Windows Firewall, router forwarding, double NAT, or CGNAT.
+- Unknown: the external test service could not be reached or returned an unexpected result.
+
+MineHost Helper uses this only as a best-effort check. Never claim public access works unless the test confirms it or a real outside Minecraft client connects successfully.

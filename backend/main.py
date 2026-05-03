@@ -332,7 +332,7 @@ def local_port_test(port: int = Query(25565, ge=1, le=65535)) -> dict[str, Any]:
 def public_port_test(port: int = Query(25565, ge=1, le=65535)) -> dict[str, Any]:
     local_open = networking.is_local_port_open(port)
     public_ip = networking.get_public_ip()
-    return networking.public_port_status(port, public_ip, local_open)
+    return networking.public_port_status(port, public_ip, local_open, check_external=True)
 
 
 @app.post("/api/networking/router/upnp")

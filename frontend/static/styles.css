@@ -793,6 +793,26 @@ code {
   border-color: rgba(58, 137, 160, 0.24);
 }
 
+.callout.success {
+  color: var(--green-dark);
+  background:
+    linear-gradient(135deg, var(--green-soft), rgba(111, 195, 93, 0.18)),
+    repeating-linear-gradient(45deg, transparent 0 11px, rgba(73, 163, 67, 0.07) 11px 22px);
+  border-color: rgba(73, 163, 67, 0.26);
+}
+
+.callout.danger {
+  color: var(--red);
+  background:
+    linear-gradient(135deg, rgba(201, 68, 61, 0.14), rgba(201, 68, 61, 0.08)),
+    repeating-linear-gradient(45deg, transparent 0 11px, rgba(201, 68, 61, 0.06) 11px 22px);
+  border-color: rgba(201, 68, 61, 0.28);
+}
+
+.callout.warning {
+  color: var(--callout-ink);
+}
+
 .toast-root {
   position: fixed;
   right: 20px;
@@ -819,6 +839,13 @@ code {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
     var(--red);
+}
+
+.toast.warning {
+  color: #2c210f;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent),
+    var(--gold);
 }
 
 .advanced {

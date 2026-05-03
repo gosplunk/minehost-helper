@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import socket
+import json
 import urllib.request
 from typing import Any
+
+from .utils import validate_port
+
+PUBLIC_PORT_TEST_URL = "https://api.networktools.dev/v1/port-test?port={port}"
 
 
 def get_local_ip() -> str | None:
@@ -35,27 +40,102 @@ def is_local_port_open(port: int, host: str = "127.0.0.1") -> bool:
         return False
 
 
-def public_port_status(port: int, public_ip: str | None, local_open: bool) -> dict[str, Any]:
+def _external_port_test(port: int) -> dict[str, Any]:
+    request = urllib.request.Request(
+        PUBLIC_PORT_TEST_URL.format(port=port),
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "MineHostHelper/0.1 (+https://github.com/gosplunk/minehost-helper)",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=12) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    status = str(payload.get("status", "")).upper()
+    return {
+        "provider": "NetworkTools.dev",
+        "status": status,
+        "ip": payload.get("ip"),
+        "port": payload.get("port", port),
+        "ms": payload.get("ms"),
+    }
+
+
+def public_port_status(port: int, public_ip: str | None, local_open: bool, check_external: bool = False) -> dict[str, Any]:
+    validate_port(port)
     if not local_open:
         return {
             "state": "Local server not running",
             "reachable": False,
+            "checked_externally": False,
             "details": "Start the Minecraft server before testing public access.",
         }
     if not public_ip:
         return {
             "state": "Unknown",
             "reachable": None,
+            "checked_externally": False,
             "details": "Public IP lookup failed. Check your internet connection and try again.",
+        }
+    if not check_external:
+        return {
+            "state": "Ready to test",
+            "reachable": None,
+            "checked_externally": False,
+            "details": (
+                "Click Test Public Port to ask an outside service whether friends can reach your Minecraft port. "
+                "Only run this after the Minecraft server is started."
+            ),
+        }
+    try:
+        external = _external_port_test(port)
+    except Exception as exc:
+        return {
+            "state": "Unknown",
+            "reachable": None,
+            "checked_externally": False,
+            "details": (
+                "The outside port-check service could not be reached, so MineHost Helper could not confirm public access. "
+                f"Ask a friend outside your house to try {public_ip}:{port}, or try again in a minute. "
+                f"Service error: {exc}"
+            ),
+        }
+    status = external["status"]
+    checked_ip = external.get("ip") or public_ip
+    if status == "OPEN":
+        return {
+            "state": "Publicly reachable",
+            "reachable": True,
+            "checked_externally": True,
+            "provider": external["provider"],
+            "details": (
+                f"An outside service confirmed TCP port {port} is open on {checked_ip}. "
+                f"Friends outside your house should be able to connect to {checked_ip}:{port}."
+            ),
+            "raw": external,
+        }
+    if status in {"CLOSED", "TIMEOUT"}:
+        reason = "rejected the connection" if status == "CLOSED" else "did not answer from the public internet"
+        return {
+            "state": "Router forwarding likely missing",
+            "reachable": False,
+            "checked_externally": True,
+            "provider": external["provider"],
+            "details": (
+                f"An outside service reached your public IP but TCP port {port} {reason}. "
+                "Check Windows Firewall, router port forwarding, double NAT, or CGNAT."
+            ),
+            "raw": external,
         }
     return {
         "state": "Unknown",
         "reachable": None,
+        "checked_externally": True,
+        "provider": external["provider"],
         "details": (
-            "MineHost Helper does not use fragile third-party port-check websites for a definitive result yet. "
-            "After firewall and router forwarding are set, ask a friend outside your house to connect to "
-            f"{public_ip}:{port}."
+            f"The outside port-check service returned an unexpected status: {status or 'empty'}. "
+            f"Ask a friend outside your house to try {public_ip}:{port}, or try again."
         ),
+        "raw": external,
     }
 
 

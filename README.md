@@ -102,7 +102,7 @@ Stop the server before restore. MineHost Helper creates a safety backup before r
 
 ## Networking
 
-Open the Networking page to see local IP, public IP, configured Minecraft TCP port, local port test, Windows Firewall rule status, and router forwarding instructions.
+Open the Networking page to see local IP, public IP, configured Minecraft TCP port, local port test, external public TCP port test, Windows Firewall rule status, and router forwarding instructions.
 
 Friends outside your house usually connect to `PUBLIC_IP:25565`. Friends inside your house usually connect to `LOCAL_IP:25565`.
 
@@ -153,7 +153,7 @@ FastAPI Swagger docs are available at `/docs` while the app is running.
 
 ## Known Limitations
 
-- Public port testing is conservative and does not claim success unless reachable status is actually confirmed.
+- Public port testing uses a best-effort external TCP check and does not claim success unless outside reachability is actually confirmed.
 - Automatic router setup is best-effort future work. Manual router instructions are provided.
 - Player count is a placeholder. Query/RCON support can be added later.
 - The current UI is static HTML/CSS/JS served by FastAPI. A React/Vite frontend can replace `frontend/static` later.
