@@ -11,7 +11,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 APP_NAME = "MineHost Helper"
-APP_VERSION = "0.1.5"
+APP_VERSION = "0.1.6"
 PUBLISHER = "MineHost Helper"
 EXE_NAME = "MineHostHelper.exe"
 UNINSTALL_EXE_NAME = "Uninstall MineHost Helper.exe"

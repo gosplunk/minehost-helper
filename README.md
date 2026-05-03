@@ -102,6 +102,14 @@ The app can also run as a small Windows tray agent. Optional settings let the us
 
 Start-on-boot uses the current user's `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` registry key and is removed by the uninstaller.
 
+## Players, Files, And Diagnostics
+
+The Players page provides simple buttons for common player commands such as whitelist, OP/de-OP, kick, ban, and unban. These actions are sent to the running Minecraft server console, so the server must be running.
+
+The Files page provides a safe file browser for the selected server folder. MineHost Helper opens and saves text/config files only, prevents path traversal, and creates a backup copy before overwriting a file.
+
+The Help page includes a problem explainer that scans recent logs for common issues such as port conflicts, old Java, missing EULA, out-of-memory errors, and mod mismatches. It also checks GitHub for newer MineHost Helper releases.
+
 ## Console And Logs
 
 The Console page shows recent output from the running process and `latest.log` when available. Commands entered there are sent only to the Minecraft process stdin.
@@ -111,6 +119,8 @@ The Console page shows recent output from the running process and `latest.log` w
 Backups are timestamped zip files stored under `backups/{server_id}/`. They include world files and configuration, while skipping generated heavy files such as `server.jar`, `libraries`, and crash dumps.
 
 Stop the server before restore. MineHost Helper creates a safety backup before restoring.
+
+Automatic backups can be enabled from the Backups page. Schedules run only while MineHost Helper is open. If the server is running when a scheduled backup is due, MineHost Helper waits and tries again later.
 
 ## Networking
 
@@ -168,6 +178,8 @@ FastAPI Swagger docs are available at `/docs` while the app is running.
 - Public port testing uses a best-effort external TCP check and does not claim success unless outside reachability is actually confirmed.
 - Automatic router setup is best-effort future work. Manual router instructions are provided.
 - Player count is a placeholder. Query/RCON support can be added later.
+- Player buttons require the server to be running because they use safe Minecraft console commands.
+- Scheduled backups run only while MineHost Helper is running.
 - The current UI is static HTML/CSS/JS served by FastAPI. A React/Vite frontend can replace `frontend/static` later.
 - Unsigned builds may show SmartScreen warnings until the project gains reputation or uses code signing.
 

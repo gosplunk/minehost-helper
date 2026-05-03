@@ -134,6 +134,10 @@ Before publishing a GitHub release:
 - Verify first launch opens the browser.
 - Verify create/start/stop server flow.
 - Verify Find Existing Servers can adopt a test server folder without moving it.
+- Verify Players buttons send commands only when the server is running.
+- Verify Files page can edit `server.properties` and creates a backup copy.
+- Verify automatic backup schedule can be saved.
+- Verify Help page update check and problem explainer load.
 - Verify uninstaller appears in Apps & Features.
 - Verify uninstall removes shortcuts and startup entry.
 - Document SmartScreen expectations in release notes.

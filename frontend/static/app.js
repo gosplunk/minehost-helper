@@ -7,13 +7,16 @@ const state = {
   dashboardTimer: null,
   theme: document.documentElement.dataset.theme || "light",
   discoveredServers: [],
+  filePath: "",
 };
 
 const titles = {
   dashboard: "Dashboard",
   setup: "Setup Wizard",
   settings: "Server Settings",
+  players: "Players",
   console: "Console",
+  files: "Files",
   backups: "Backups",
   networking: "Networking",
   help: "Help",
@@ -92,6 +95,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function jsArg(value) {
+  return encodeURIComponent(String(value ?? ""));
 }
 
 function operationCard(operation) {
@@ -684,23 +691,174 @@ async function renderBackups() {
     $("backups").innerHTML = noServerCard();
     return;
   }
-  const backups = await api(`/api/servers/${server.id}/backups`);
+  const [backups, schedule] = await Promise.all([
+    api(`/api/servers/${server.id}/backups`),
+    api(`/api/servers/${server.id}/backup-schedule`),
+  ]);
   $("backups").innerHTML = `
-    <div class="card">
-      <h2>Backups</h2>
-      <p class="muted">Create a backup before big changes. Restore requires the server to be stopped.</p>
-      <button class="primary" onclick="createBackup()">Create Backup Now</button>
-      <div class="table-list" style="margin-top:16px">
-        ${backups.length ? backups.map((backup) => `
-          <div class="list-item">
-            <div><strong>${backup.name}</strong><br><span class="muted">${formatBytes(backup.size_bytes)} · ${new Date(backup.created_at).toLocaleString()}</span></div>
-            <div class="actions">
-              <button onclick="restoreBackup('${backup.name}')">Restore</button>
-              <button class="danger" onclick="deleteBackup('${backup.name}')">Delete</button>
-            </div>
-          </div>`).join("") : `<p class="muted">No backups yet.</p>`}
+    <div class="split">
+      <div class="card">
+        <h2>Backups</h2>
+        <p class="muted">Create a backup before big changes. Restore requires the server to be stopped.</p>
+        <button class="primary" onclick="createBackup()">Create Backup Now</button>
+        <div class="table-list" style="margin-top:16px">
+          ${backups.length ? backups.map((backup) => `
+            <div class="list-item">
+              <div><strong>${backup.name}</strong><br><span class="muted">${formatBytes(backup.size_bytes)} · ${new Date(backup.created_at).toLocaleString()}</span></div>
+              <div class="actions">
+                <button onclick="restoreBackup('${backup.name}')">Restore</button>
+                <button class="danger" onclick="deleteBackup('${backup.name}')">Delete</button>
+              </div>
+            </div>`).join("") : `<p class="muted">No backups yet.</p>`}
+        </div>
+      </div>
+      <form id="backup-schedule-form" class="card">
+        <h2>Automatic backups</h2>
+        <p class="muted">Runs only while MineHost Helper is open. If the server is running at backup time, MineHost Helper waits and tries again later.</p>
+        <div class="form-grid">
+          <label class="field"><span><input name="enabled" type="checkbox" ${schedule.enabled ? "checked" : ""}> Turn on automatic backups</span></label>
+          <label class="field">Every how many hours<input name="interval_hours" type="number" min="1" max="168" value="${schedule.interval_hours}"></label>
+          <label class="field">Keep how many backups<input name="retention_count" type="number" min="1" max="100" value="${schedule.retention_count}"></label>
+        </div>
+        <p class="callout info">Last backup: ${schedule.last_run_at ? new Date(schedule.last_run_at).toLocaleString() : "not yet"}<br>Next backup: ${schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString() : "not scheduled"}</p>
+        <button class="primary" type="submit">Save Schedule</button>
+      </form>
+    </div>`;
+  $("backup-schedule-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    await runAction("Backup schedule saved", async () => {
+      await api(`/api/servers/${server.id}/backup-schedule`, {
+        method: "PUT",
+        body: JSON.stringify({
+          enabled: form.has("enabled"),
+          interval_hours: Number(form.get("interval_hours")),
+          retention_count: Number(form.get("retention_count")),
+        }),
+      });
+    });
+  });
+}
+
+async function renderPlayers() {
+  const server = selectedServer();
+  if (!server) {
+    $("players").innerHTML = noServerCard();
+    return;
+  }
+  const data = await api(`/api/servers/${server.id}/players`);
+  const listNames = (items) => items.map((item) => escapeHtml(item.name || item.uuid || JSON.stringify(item))).join(", ") || "None";
+  $("players").innerHTML = `
+    <div class="split">
+      <div class="card">
+        <h2>Player controls</h2>
+        <p class="muted">These buttons send safe Minecraft console commands. The server must be running for changes.</p>
+        <div class="form-grid">
+          <label class="field">Player name<input id="player-name" placeholder="Steve"></label>
+          <label class="field">Reason, optional<input id="player-reason" placeholder="Be kind"></label>
+        </div>
+        <div class="actions" style="margin-top:16px">
+          <button onclick="playerAction('whitelist-add')">Whitelist</button>
+          <button onclick="playerAction('op')">Make OP</button>
+          <button onclick="playerAction('deop')">Remove OP</button>
+          <button onclick="playerAction('kick')">Kick</button>
+          <button class="danger" onclick="playerAction('ban')">Ban</button>
+          <button onclick="playerAction('pardon')">Unban</button>
+        </div>
+        <p class="callout">Avoid giving OP to people you do not fully trust. OP players can change worlds and run powerful commands.</p>
+      </div>
+      <div class="card">
+        <h2>Known players</h2>
+        <div class="table-list">
+          <div class="list-item"><strong>Recently online</strong><span>${data.online.map(escapeHtml).join(", ") || "None detected yet"}</span></div>
+          <div class="list-item"><strong>Whitelist</strong><span>${listNames(data.whitelist)}</span></div>
+          <div class="list-item"><strong>OPs</strong><span>${listNames(data.ops)}</span></div>
+          <div class="list-item"><strong>Banned</strong><span>${listNames(data.banned_players)}</span></div>
+        </div>
       </div>
     </div>`;
+}
+
+async function playerAction(action) {
+  const server = selectedServer();
+  const player = $("player-name").value.trim();
+  const reason = $("player-reason").value.trim();
+  if (!player) {
+    toast("Enter a player name first.", "error");
+    return;
+  }
+  await runAction("Player command sent", async () => {
+    await api(`/api/servers/${server.id}/players/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ player, reason }),
+    });
+  });
+}
+
+async function renderFiles() {
+  const server = selectedServer();
+  if (!server) {
+    $("files").innerHTML = noServerCard();
+    return;
+  }
+  const data = await api(`/api/servers/${server.id}/files?path=${encodeURIComponent(state.filePath || "")}`);
+  const parent = data.path ? data.path.split("/").slice(0, -1).join("/") : "";
+  $("files").innerHTML = `
+    <div class="split">
+      <div class="card">
+        <h2>Server files</h2>
+        <p class="muted">Safe browser for this server folder. Text/config files can be opened and saved with an automatic backup copy.</p>
+        <p class="callout info">Current folder: ${escapeHtml(data.path || "/")}</p>
+        <div class="table-list">
+          ${data.path ? `<div class="list-item"><strong>..</strong><button onclick="openFolder('${jsArg(parent)}')">Up</button></div>` : ""}
+          ${data.entries.map((entry) => `
+            <div class="list-item">
+              <div><strong>${entry.type === "folder" ? "Folder" : "File"} ${escapeHtml(entry.name)}</strong><br><span class="muted">${entry.size_bytes ? formatBytes(entry.size_bytes) : ""}</span></div>
+              <div class="actions">
+                ${entry.type === "folder" ? `<button onclick="openFolder('${jsArg(entry.path)}')">Open</button>` : ""}
+                ${entry.editable ? `<button onclick="openFile('${jsArg(entry.path)}')">Edit</button>` : ""}
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>
+      <div class="card">
+        <h2>Editor</h2>
+        <p id="file-editor-path" class="muted">Choose an editable text/config file.</p>
+        <textarea id="file-editor" placeholder="File contents will appear here"></textarea>
+        <div class="actions" style="margin-top:12px">
+          <button class="primary" onclick="saveOpenFile()">Save File</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openFolder(path) {
+  state.filePath = decodeURIComponent(path || "");
+  renderFiles();
+}
+
+async function openFile(path) {
+  const server = selectedServer();
+  const decodedPath = decodeURIComponent(path || "");
+  const data = await api(`/api/servers/${server.id}/files/read?path=${encodeURIComponent(decodedPath)}`);
+  $("file-editor-path").textContent = data.path;
+  $("file-editor-path").dataset.path = data.path;
+  $("file-editor").value = data.content;
+}
+
+async function saveOpenFile() {
+  const server = selectedServer();
+  const path = $("file-editor-path").dataset.path;
+  if (!path) {
+    toast("Open a file first.", "error");
+    return;
+  }
+  await runAction("File saved", async () => {
+    await api(`/api/servers/${server.id}/files/write?path=${encodeURIComponent(path)}`, {
+      method: "PUT",
+      body: JSON.stringify({ content: $("file-editor").value }),
+    });
+  });
 }
 
 async function createBackup() {
@@ -787,9 +945,37 @@ async function tryUpnp() {
   });
 }
 
-function renderHelp() {
+async function renderHelp() {
+  const server = selectedServer();
+  const [update, diagnostics] = await Promise.all([
+    api("/api/app/update-check"),
+    server ? api(`/api/servers/${server.id}/diagnostics`) : Promise.resolve(null),
+  ]);
   $("help").innerHTML = `
     <div class="split">
+      <div class="card">
+        <h2>App update</h2>
+        <p class="muted">Installed version: ${escapeHtml(update.current_version)}<br>Latest version: ${escapeHtml(update.latest_version || "unknown")}</p>
+        ${update.error ? `<p class="callout warning">Could not check GitHub right now: ${escapeHtml(update.error)}</p>` : ""}
+        ${update.update_available ? `<p class="callout success">A newer MineHost Helper is available.</p>` : `<p class="callout info">MineHost Helper appears up to date.</p>`}
+        <div class="actions">
+          <button class="primary" onclick="window.open('${escapeHtml(update.download_url)}', '_blank')">Download Latest Installer</button>
+          ${update.release_url ? `<button onclick="window.open('${escapeHtml(update.release_url)}', '_blank')">Release Notes</button>` : ""}
+        </div>
+      </div>
+      <div class="card">
+        <h2>Problem explainer</h2>
+        <p class="muted">MineHost Helper scans recent logs for common Minecraft startup problems.</p>
+        ${diagnostics ? `
+          <div class="table-list">
+            <div class="list-item"><strong>Server folder size</strong><span>${formatBytes(diagnostics.disk.bytes)} · ${diagnostics.disk.files} files</span></div>
+            ${diagnostics.findings.map((finding) => `
+              <div class="list-item">
+                <div><strong>${escapeHtml(finding.title)}</strong><br><span class="muted">${escapeHtml(finding.advice)}</span>${finding.evidence ? `<br><code>${escapeHtml(finding.evidence)}</code>` : ""}</div>
+                <span class="pill ${finding.severity === "ok" ? "running" : finding.severity === "warning" ? "warning" : "error"}">${escapeHtml(finding.severity)}</span>
+              </div>`).join("")}
+          </div>` : `<p class="muted">Create or select a server to see diagnostics.</p>`}
+      </div>
       <div class="card">
         <h2>Plain-English hosting notes</h2>
         <p>Friends inside your house use your local IP, usually like <code>192.168.1.50:25565</code>.</p>
@@ -872,9 +1058,11 @@ async function render() {
     if (state.page === "setup") renderSetup();
     if (state.page === "settings") await renderSettings();
     if (state.page === "console") renderConsole();
+    if (state.page === "players") await renderPlayers();
+    if (state.page === "files") await renderFiles();
     if (state.page === "backups") await renderBackups();
     if (state.page === "networking") await renderNetworking();
-    if (state.page === "help") renderHelp();
+    if (state.page === "help") await renderHelp();
   } catch (error) {
     $(state.page).innerHTML = `<div class="card"><h2>Could not load this page</h2><p class="muted">${error.message}</p></div>`;
     toast(error.message, "error");

@@ -27,6 +27,8 @@ from .server_discovery import find_server_jar, server_candidate
 from .storage import servers_store
 from .utils import ensure_child_path, slugify_name
 
+EDITABLE_EXTENSIONS = {".txt", ".json", ".properties", ".yml", ".yaml", ".toml", ".cfg", ".conf", ".log"}
+
 
 class ManagedProcess:
     def __init__(self, process: subprocess.Popen[str], server_id: str):
@@ -518,6 +520,50 @@ class ServerManager:
         managed.process.stdin.write(command.strip() + "\n")
         managed.process.stdin.flush()
 
+    def player_action(self, server_id: str, action: str, player: str, reason: str | None = None) -> None:
+        commands = {
+            "op": f"op {player}",
+            "deop": f"deop {player}",
+            "whitelist-add": f"whitelist add {player}",
+            "whitelist-remove": f"whitelist remove {player}",
+            "ban": f"ban {player} {reason or ''}".strip(),
+            "pardon": f"pardon {player}",
+            "kick": f"kick {player} {reason or ''}".strip(),
+        }
+        if action not in commands:
+            raise ValueError("Unsupported player action")
+        self.send_command(server_id, commands[action])
+
+    def player_lists(self, server_id: str) -> dict[str, Any]:
+        server_dir = self._server_dir(server_id)
+
+        def read_json_file(name: str) -> list[dict[str, Any]]:
+            path = server_dir / name
+            if not path.exists():
+                return []
+            try:
+                import json
+                data = json.loads(path.read_text(encoding="utf-8"))
+                return data if isinstance(data, list) else []
+            except Exception:
+                return []
+
+        online: list[str] = []
+        for line in self.console_lines(server_id, 300):
+            joined = re.search(r":\s*([A-Za-z0-9_]{3,16}) joined the game", line)
+            left = re.search(r":\s*([A-Za-z0-9_]{3,16}) left the game", line)
+            if joined and joined.group(1) not in online:
+                online.append(joined.group(1))
+            if left and left.group(1) in online:
+                online.remove(left.group(1))
+        return {
+            "online": online,
+            "whitelist": read_json_file("whitelist.json"),
+            "ops": read_json_file("ops.json"),
+            "banned_players": read_json_file("banned-players.json"),
+            "requires_running_for_changes": True,
+        }
+
     def console_lines(self, server_id: str, limit: int = 200) -> list[str]:
         managed = self._processes.get(server_id)
         lines = list(managed.lines)[-limit:] if managed else []
@@ -536,6 +582,72 @@ class ServerManager:
             return latest
         console = LOGS_DIR / f"{server_id}-console.log"
         return console if console.exists() else None
+
+    def diagnose(self, server_id: str) -> list[dict[str, str]]:
+        from .diagnostics import explain_lines
+
+        return explain_lines(self.console_lines(server_id, 500))
+
+    def server_disk_usage(self, server_id: str) -> dict[str, Any]:
+        server_dir = self._server_dir(server_id)
+        total = 0
+        files = 0
+        for path in server_dir.rglob("*"):
+            try:
+                if path.is_file():
+                    total += path.stat().st_size
+                    files += 1
+            except OSError:
+                pass
+        return {"bytes": total, "files": files}
+
+    def _safe_relative_path(self, server_id: str, relative_path: str) -> Path:
+        if not relative_path or relative_path in {".", "/"}:
+            return self._server_dir(server_id)
+        candidate = self._server_dir(server_id) / relative_path.replace("/", os.sep)
+        return ensure_child_path(self._server_dir(server_id), candidate)
+
+    def list_files(self, server_id: str, relative_path: str = "") -> dict[str, Any]:
+        base = self._server_dir(server_id)
+        folder = self._safe_relative_path(server_id, relative_path)
+        if not folder.exists() or not folder.is_dir():
+            raise ValueError("Folder was not found")
+        entries = []
+        for child in sorted(folder.iterdir(), key=lambda path: (not path.is_dir(), path.name.lower())):
+            try:
+                stat = child.stat()
+            except OSError:
+                continue
+            rel = child.relative_to(base).as_posix()
+            entries.append({
+                "name": child.name,
+                "path": rel,
+                "type": "folder" if child.is_dir() else "file",
+                "size_bytes": stat.st_size if child.is_file() else None,
+                "editable": child.is_file() and child.suffix.lower() in EDITABLE_EXTENSIONS and stat.st_size <= 1_000_000,
+            })
+        return {"path": folder.relative_to(base).as_posix() if folder != base else "", "entries": entries}
+
+    def read_file(self, server_id: str, relative_path: str) -> dict[str, Any]:
+        path = self._safe_relative_path(server_id, relative_path)
+        if not path.exists() or not path.is_file():
+            raise ValueError("File was not found")
+        if path.suffix.lower() not in EDITABLE_EXTENSIONS:
+            raise ValueError("MineHost Helper only opens safe text/config files")
+        if path.stat().st_size > 1_000_000:
+            raise ValueError("This file is too large to edit safely")
+        return {"path": path.relative_to(self._server_dir(server_id)).as_posix(), "content": path.read_text(encoding="utf-8", errors="replace")}
+
+    def write_file(self, server_id: str, relative_path: str, content: str) -> dict[str, Any]:
+        path = self._safe_relative_path(server_id, relative_path)
+        if not path.exists() or not path.is_file():
+            raise ValueError("File was not found")
+        if path.suffix.lower() not in EDITABLE_EXTENSIONS:
+            raise ValueError("MineHost Helper only edits safe text/config files")
+        backup = path.with_suffix(path.suffix + f".bak-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+        shutil.copy2(path, backup)
+        path.write_text(content, encoding="utf-8")
+        return self.read_file(server_id, relative_path)
 
     def process_info(self, server_id: str) -> dict[str, Any]:
         managed = self._processes.get(server_id)

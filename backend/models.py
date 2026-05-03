@@ -95,6 +95,43 @@ class VersionChangeRequest(BaseModel):
     version: str = Field(min_length=1, max_length=40)
 
 
+class PlayerActionRequest(BaseModel):
+    player: str = Field(min_length=1, max_length=32)
+    reason: str | None = Field(default=None, max_length=160)
+
+    @field_validator("player")
+    @classmethod
+    def clean_player(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned.replace("_", "").isalnum():
+            raise ValueError("Player names can contain letters, numbers, and underscores only")
+        return cleaned
+
+
+class FileWriteRequest(BaseModel):
+    content: str = Field(max_length=1_000_000)
+
+
+class BackupScheduleUpdateRequest(BaseModel):
+    enabled: bool = False
+    interval_hours: int = 24
+    retention_count: int = 10
+
+    @field_validator("interval_hours")
+    @classmethod
+    def clean_interval(cls, value: int) -> int:
+        if not 1 <= value <= 168:
+            raise ValueError("Backup interval must be between 1 hour and 7 days")
+        return value
+
+    @field_validator("retention_count")
+    @classmethod
+    def clean_retention(cls, value: int) -> int:
+        if not 1 <= value <= 100:
+            raise ValueError("Retention count must be between 1 and 100")
+        return value
+
+
 class AppSettingsUpdateRequest(BaseModel):
     close_to_tray: bool | None = None
     auto_open_browser: bool | None = None

@@ -295,3 +295,44 @@ def test_adopt_existing_server_records_external_path_and_jar(tmp_path: Path) -> 
     assert adopted["jar_name"] == "fabric-server.jar"
     assert adopted["port"] == 25571
     assert manager._server_jar_path(adopted["id"]).name == "fabric-server.jar"
+
+
+def test_file_manager_sandboxes_and_backs_up_text_files(tmp_path: Path) -> None:
+    from backend.server_manager import ServerManager
+
+    (tmp_path / "server.properties").write_text("motd=old\n", encoding="utf-8")
+    manager = ServerManager.__new__(ServerManager)
+    manager._servers = {"family": {"id": "family", "path": str(tmp_path), "jar_name": "server.jar"}}
+
+    listing = manager.list_files("family")
+    assert any(item["name"] == "server.properties" and item["editable"] for item in listing["entries"])
+
+    updated = manager.write_file("family", "server.properties", "motd=new\n")
+    assert updated["content"] == "motd=new\n"
+    assert list(tmp_path.glob("server.properties.bak-*"))
+
+    with pytest.raises(ValueError):
+        manager.read_file("family", "../outside.txt")
+
+
+def test_diagnostics_explains_common_errors() -> None:
+    from backend.diagnostics import explain_lines
+
+    findings = explain_lines(["java.lang.UnsupportedClassVersionError: newer version required"])
+
+    assert findings[0]["title"] == "Java is too old"
+
+
+def test_backup_schedule_update_validates_and_persists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import backup_scheduler, storage
+
+    monkeypatch.setattr(storage, "APP_DATA_DIR", tmp_path)
+    store = storage.JsonStorage(tmp_path / "backup_settings.json")
+    monkeypatch.setattr(backup_scheduler, "backup_settings_store", store)
+
+    settings = backup_scheduler.update_schedule("family", {"enabled": True, "interval_hours": 6, "retention_count": 3})
+
+    assert settings["enabled"] is True
+    assert settings["interval_hours"] == 6
+    assert settings["retention_count"] == 3
+    assert backup_scheduler.get_schedule("family")["next_run_at"]

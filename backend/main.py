@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+import threading
 from typing import Any
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import app_settings, firewall, java_manager, minecraft_downloader, networking
+from . import app_settings, backup_scheduler, firewall, java_manager, minecraft_downloader, networking, update_checker
 from .server_discovery import scan_existing_servers
 from .config import APP_NAME, HOST, PORT, STATIC_DIR, ensure_directories
 from .models import (
     CommandRequest,
     AppSettingsUpdateRequest,
+    BackupScheduleUpdateRequest,
+    FileWriteRequest,
     FirewallFixRequest,
+    PlayerActionRequest,
     PropertiesUpdateRequest,
     ServerAdoptRequest,
     ServerCreateRequest,
@@ -23,10 +28,28 @@ from .server_manager import server_manager
 
 ensure_directories()
 
+_scheduler_stop = threading.Event()
+_scheduler_thread: threading.Thread | None = None
+
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    global _scheduler_thread
+    if not _scheduler_thread or not _scheduler_thread.is_alive():
+        _scheduler_stop.clear()
+        _scheduler_thread = threading.Thread(target=backup_scheduler.run_scheduler, args=(server_manager, _scheduler_stop), daemon=True)
+        _scheduler_thread.start()
+    try:
+        yield
+    finally:
+        _scheduler_stop.set()
+
+
 app = FastAPI(
     title=APP_NAME,
     description="Local Windows-first Minecraft Java server manager.",
-    version="0.1.5",
+    version=update_checker.CURRENT_VERSION,
+    lifespan=lifespan,
 )
 
 
@@ -97,6 +120,21 @@ def minecraft_versions() -> dict[str, Any]:
 @app.get("/api/app-settings")
 def get_app_settings() -> dict[str, Any]:
     return app_settings.get_settings()
+
+
+@app.get("/api/app/update-check")
+def update_check() -> dict[str, Any]:
+    try:
+        return update_checker.check_for_updates()
+    except Exception as exc:
+        return {
+            "current_version": update_checker.CURRENT_VERSION,
+            "latest_version": None,
+            "update_available": False,
+            "release_url": None,
+            "download_url": "https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe",
+            "error": str(exc),
+        }
 
 
 @app.put("/api/app-settings")
@@ -243,6 +281,55 @@ def send_command(server_id: str, data: CommandRequest) -> dict[str, bool]:
         raise _api_error(exc)
 
 
+@app.get("/api/servers/{server_id}/players")
+def players(server_id: str) -> dict[str, Any]:
+    try:
+        return server_manager.player_lists(server_id)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.post("/api/servers/{server_id}/players/{action}")
+def player_action(server_id: str, action: str, data: PlayerActionRequest) -> dict[str, bool]:
+    try:
+        server_manager.player_action(server_id, action, data.player, data.reason)
+        return {"ok": True}
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/servers/{server_id}/diagnostics")
+def diagnostics(server_id: str) -> dict[str, Any]:
+    try:
+        return {"findings": server_manager.diagnose(server_id), "disk": server_manager.server_disk_usage(server_id)}
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/servers/{server_id}/files")
+def list_files(server_id: str, path: str = "") -> dict[str, Any]:
+    try:
+        return server_manager.list_files(server_id, path)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/servers/{server_id}/files/read")
+def read_file(server_id: str, path: str) -> dict[str, Any]:
+    try:
+        return server_manager.read_file(server_id, path)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.put("/api/servers/{server_id}/files/write")
+def write_file(server_id: str, path: str, data: FileWriteRequest) -> dict[str, Any]:
+    try:
+        return server_manager.write_file(server_id, path, data.content)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
 @app.get("/api/servers/{server_id}/log")
 def download_log(server_id: str) -> FileResponse:
     path = server_manager.log_file(server_id)
@@ -288,6 +375,19 @@ def change_server_version(server_id: str, data: VersionChangeRequest) -> dict[st
 def list_backups(server_id: str) -> list[dict[str, Any]]:
     try:
         return server_manager.list_backups(server_id)
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/servers/{server_id}/backup-schedule")
+def get_backup_schedule(server_id: str) -> dict[str, Any]:
+    return backup_scheduler.get_schedule(server_id)
+
+
+@app.put("/api/servers/{server_id}/backup-schedule")
+def update_backup_schedule(server_id: str, data: BackupScheduleUpdateRequest) -> dict[str, Any]:
+    try:
+        return backup_scheduler.update_schedule(server_id, data.model_dump())
     except Exception as exc:
         raise _api_error(exc)
 
