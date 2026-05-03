@@ -32,6 +32,7 @@ Installer behavior:
 - Detects an existing install before copying files.
 - Offers Update / Repair to keep servers, backups, Java runtimes, logs, and app settings.
 - Offers Clean Install to remove the selected MineHost Helper install folder and start over after explicit confirmation.
+- Clean Install stops MineHost Helper first, moves the old install folder aside, then deletes it in the background so locked files do not block reinstall.
 - Checks for Java 25+ when setup opens and skips Java preparation when compatible bundled or system Java already exists.
 - Prepares the bundled Eclipse Temurin Java runtime during install only when Java 25+ is missing.
 - Installs for the current Windows user without requiring Administrator permission.

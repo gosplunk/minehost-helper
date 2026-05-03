@@ -7,13 +7,14 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import tkinter as tk
 import winreg
 from pathlib import Path
 from tkinter import filedialog, messagebox
 
 APP_NAME = "MineHost Helper"
-APP_VERSION = "0.1.11"
+APP_VERSION = "0.1.12"
 PUBLISHER = "MineHost Helper"
 EXE_NAME = "MineHostHelper.exe"
 UNINSTALL_EXE_NAME = "Uninstall MineHost Helper.exe"
@@ -117,12 +118,36 @@ def remove_startup_entry() -> None:
 
 def stop_running_app() -> None:
     subprocess.run(
-        ["taskkill", "/IM", EXE_NAME, "/F"],
+        ["taskkill", "/IM", EXE_NAME, "/T", "/F"],
         capture_output=True,
         text=True,
         check=False,
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
+    wait_for_processes_to_exit([EXE_NAME], timeout_seconds=12)
+
+
+def wait_for_processes_to_exit(process_names: list[str], timeout_seconds: int = 10) -> bool:
+    names = {name.lower() for name in process_names}
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        running = False
+        for line in result.stdout.splitlines():
+            image = line.split(",", 1)[0].strip().strip('"').lower()
+            if image in names:
+                running = True
+                break
+        if not running:
+            return True
+        time.sleep(0.5)
+    return False
 
 
 def parse_java_feature_version(version_text: str) -> int | None:
@@ -257,9 +282,40 @@ def remove_install_folder_for_clean_install(target_dir: Path) -> None:
     if not is_safe_install_folder(target_dir):
         raise ValueError(f"Refusing to clean an unrecognized install folder: {target_dir}")
     if target_dir in Path(sys.executable).resolve().parents:
-        schedule_remove_dir(target_dir)
-    else:
-        shutil.rmtree(target_dir, ignore_errors=True)
+        raise RuntimeError(
+            "Clean Install cannot run while the setup app is inside the MineHost Helper install folder. "
+            "Move MineHostHelperSetup.exe to Downloads or Desktop, then run it again."
+        )
+
+    parent = target_dir.parent
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    archived_dir = parent / f"{target_dir.name}.old-{timestamp}"
+    suffix = 1
+    while archived_dir.exists():
+        suffix += 1
+        archived_dir = parent / f"{target_dir.name}.old-{timestamp}-{suffix}"
+
+    last_error: Exception | None = None
+    for attempt in range(1, 7):
+        try:
+            target_dir.rename(archived_dir)
+            schedule_remove_dir(archived_dir)
+            return
+        except OSError as exc:
+            last_error = exc
+            time.sleep(0.75 * attempt)
+
+    try:
+        shutil.rmtree(target_dir)
+        return
+    except OSError as exc:
+        last_error = exc
+
+    raise RuntimeError(
+        "Clean Install could not remove the old MineHost Helper folder because Windows still has a file open. "
+        "Close MineHost Helper from the tray, close any Minecraft server windows, wait a few seconds, then try again. "
+        f"Locked folder: {target_dir}. Windows error: {last_error}"
+    ) from last_error
 
 
 def install(
