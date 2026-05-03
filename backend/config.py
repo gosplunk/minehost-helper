@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 APP_NAME = "MineHost Helper"
-DEFAULT_MANAGER_PORT = 8787
+DEFAULT_MANAGER_PORT = 48721
 DEFAULT_MINECRAFT_PORT = 25565
 
 if getattr(sys, "frozen", False):

@@ -30,7 +30,7 @@ Use this path for development or portable testing:
 
 1. Copy this folder to a normal writable location, such as `C:\MineHostHelper`.
 2. Double click `Start MineHost Helper.bat`.
-3. The browser opens automatically at `http://127.0.0.1:8787` or the next free port.
+3. The browser opens automatically at `http://127.0.0.1:48721` or the next free port.
 
 Requirements for source mode:
 
@@ -168,7 +168,7 @@ From this folder:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8787
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 48721
 ```
 
 FastAPI Swagger docs are available at `/docs` while the app is running.

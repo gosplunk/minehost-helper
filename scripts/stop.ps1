@@ -1,6 +1,6 @@
 $ErrorActionPreference = "SilentlyContinue"
 
-$ports = 8787..8886
+$ports = 48721..48820
 $stopped = 0
 foreach ($port in $ports) {
   $connections = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $port -State Listen
@@ -17,5 +17,5 @@ foreach ($port in $ports) {
 }
 
 if ($stopped -eq 0) {
-  Write-Host "No MineHost Helper manager process was found on ports 8787-8886."
+  Write-Host "No MineHost Helper manager process was found on ports 48721-48820."
 }

@@ -66,7 +66,7 @@ Write-Host "Installing or updating MineHost Helper backend dependencies..." -For
 & $VenvPython -m pip install --upgrade pip
 & $VenvPython -m pip install -r (Join-Path $Root "requirements.txt")
 
-$Port = Find-FreePort 8787
+$Port = Find-FreePort 48721
 $env:MINEHOST_HOST = "127.0.0.1"
 $env:MINEHOST_PORT = "$Port"
 $Url = "http://127.0.0.1:$Port"
