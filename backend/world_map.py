@@ -22,34 +22,80 @@ def _level_name(server_dir: Path) -> str:
         return "world"
 
 
-def _region_dir(server_dir: Path, dimension: str) -> Path:
+def _dimension_region_path(world_dir: Path, dimension: str) -> Path:
     if dimension not in DIMENSIONS:
         raise ValueError("Unknown world dimension")
-    return server_dir / _level_name(server_dir) / DIMENSIONS[dimension]["region_path"]
+    return world_dir / DIMENSIONS[dimension]["region_path"]
+
+
+def _has_region_files(world_dir: Path, dimension: str) -> bool:
+    region_dir = _dimension_region_path(world_dir, dimension)
+    return region_dir.exists() and any(REGION_RE.match(path.name) for path in region_dir.glob("r.*.*.mca"))
+
+
+def _candidate_world_dirs(server_dir: Path) -> list[Path]:
+    configured = server_dir / _level_name(server_dir)
+    candidates: list[Path] = [configured]
+    for common in ("world", "World", "WORLD"):
+        candidates.append(server_dir / common)
+    try:
+        for child in server_dir.iterdir():
+            if child.is_dir() and any(_has_region_files(child, dimension) for dimension in DIMENSIONS):
+                candidates.append(child)
+    except OSError:
+        pass
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate.resolve() if candidate.exists() else candidate)
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique
+
+
+def _world_dir(server_dir: Path, dimension: str) -> Path:
+    candidates = _candidate_world_dirs(server_dir)
+    for candidate in candidates:
+        if _has_region_files(candidate, dimension):
+            return candidate
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+def _region_dir(server_dir: Path, dimension: str) -> Path:
+    return _dimension_region_path(_world_dir(server_dir, dimension), dimension)
 
 
 def list_dimensions(server_dir: Path) -> list[dict[str, Any]]:
+    world_dirs = _candidate_world_dirs(server_dir)
     return [
         {
             "id": dimension_id,
             "label": details["label"],
-            "available": _region_dir(server_dir, dimension_id).exists(),
+            "available": any(_has_region_files(world_dir, dimension_id) for world_dir in world_dirs),
         }
         for dimension_id, details in DIMENSIONS.items()
     ]
 
 
 def scan_dimension(server_dir: Path, dimension: str = "overworld") -> dict[str, Any]:
+    world_dir = _world_dir(server_dir, dimension)
     region_dir = _region_dir(server_dir, dimension)
     chunks: list[dict[str, int]] = []
     region_count = 0
     bounds: dict[str, int | None] = {"min_x": None, "max_x": None, "min_z": None, "max_z": None}
 
+    region_files_found = 0
     if region_dir.exists():
         for path in sorted(region_dir.glob("r.*.*.mca")):
             match = REGION_RE.match(path.name)
             if not match:
                 continue
+            region_files_found += 1
             region_x = int(match.group(1))
             region_z = int(match.group(2))
             try:
@@ -81,13 +127,35 @@ def scan_dimension(server_dir: Path, dimension: str = "overworld") -> dict[str, 
     return {
         "dimension": dimension,
         "label": DIMENSIONS[dimension]["label"],
-        "world_name": _level_name(server_dir),
+        "world_name": world_dir.name,
+        "configured_world_name": _level_name(server_dir),
+        "world_path": str(world_dir),
         "region_path": str(region_dir),
-        "available": region_dir.exists(),
+        "available": region_dir.exists() and region_files_found > 0,
         "dimensions": list_dimensions(server_dir),
         "chunks": chunks,
         "chunk_count": len(chunks),
         "region_count": region_count,
+        "region_files_found": region_files_found,
         "bounds": bounds,
-        "note": "This map shows chunks saved by vanilla Minecraft. It is an explored-area overview, not a live terrain render.",
+        "note": _map_note(region_dir, region_files_found, len(chunks)),
     }
+
+
+def _map_note(region_dir: Path, region_files_found: int, chunk_count: int) -> str:
+    if not region_dir.exists():
+        return (
+            "No vanilla region folder was found for this dimension. Start the server once, let the world finish generating, "
+            "then refresh the map. If this is an imported server, check that level-name points at the folder containing region files."
+        )
+    if region_files_found == 0:
+        return (
+            "The world folder exists, but no vanilla .mca region files were found for this dimension yet. "
+            "Join the world or let spawn finish generating, then refresh the map."
+        )
+    if chunk_count == 0:
+        return (
+            "Region files were found, but their chunk headers are empty. Stop the server, make sure Minecraft saved the world, "
+            "then refresh the map."
+        )
+    return "This map shows chunks saved by vanilla Minecraft. It is an explored-area overview, not a live terrain render."

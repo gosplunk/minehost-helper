@@ -1550,17 +1550,23 @@ async function renderWorldMap() {
         <div class="map-canvas-wrap">
           <canvas id="world-map-canvas" width="1100" height="720" aria-label="Explored chunk map"></canvas>
         </div>
-        <p class="callout info">${escapeHtml(data.safe_refresh_note || data.note || "Use Refresh Map after players explore new areas.")}</p>
+        <p class="callout ${data.chunk_count ? "info" : "warning"}">${escapeHtml(data.note || data.safe_refresh_note || "Use Refresh Map after players explore new areas.")}</p>
       </div>
       <div class="card">
         <h2>Map details</h2>
         <div class="table-list">
           <div class="list-item"><strong>World folder</strong><span>${escapeHtml(data.world_name || "world")}</span></div>
+          <div class="list-item"><strong>Configured level-name</strong><span>${escapeHtml(data.configured_world_name || data.world_name || "world")}</span></div>
           <div class="list-item"><strong>Dimension</strong><span>${escapeHtml(data.label)}</span></div>
           <div class="list-item"><strong>Explored chunks</strong><span>${data.chunk_count}</span></div>
+          <div class="list-item"><strong>Region files found</strong><span>${data.region_files_found || 0}</span></div>
           <div class="list-item"><strong>Region files with chunks</strong><span>${data.region_count}</span></div>
           <div class="list-item"><strong>Server status</strong><span>${escapeHtml(data.server_status || server.status)}</span></div>
         </div>
+        <details class="advanced">
+          <summary>Map file path</summary>
+          <p class="muted"><code>${escapeHtml(data.region_path || "")}</code></p>
+        </details>
         <p class="callout warning">For the safest full refresh, stop the server first. Reading headers while running is lightweight, but Minecraft may save newly explored chunks after this scan.</p>
         <h3 style="margin-top:18px">How to read this map</h3>
         <p class="muted">Each square is one generated chunk. North is up. The crosshair marks chunk 0,0 near world spawn for most vanilla worlds.</p>

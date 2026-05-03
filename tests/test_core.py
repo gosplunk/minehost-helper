@@ -419,6 +419,25 @@ def test_world_map_reports_missing_dimension(tmp_path: Path) -> None:
     assert data["chunks"] == []
 
 
+def test_world_map_finds_imported_world_when_level_name_is_wrong(tmp_path: Path) -> None:
+    from backend.world_map import scan_dimension
+
+    write_properties(tmp_path, {"level-name": "missing-world"}, make_backup=False)
+    region_dir = tmp_path / "RealWorld" / "region"
+    region_dir.mkdir(parents=True)
+    header = bytearray(4096)
+    header[0:4] = b"\x00\x00\x02\x01"
+    (region_dir / "r.0.0.mca").write_bytes(bytes(header) + b"\x00" * 4096)
+
+    data = scan_dimension(tmp_path, "overworld")
+
+    assert data["available"] is True
+    assert data["world_name"] == "RealWorld"
+    assert data["configured_world_name"] == "missing-world"
+    assert data["region_files_found"] == 1
+    assert data["chunk_count"] == 1
+
+
 def test_diagnostics_explains_common_errors() -> None:
     from backend.diagnostics import explain_lines
 
