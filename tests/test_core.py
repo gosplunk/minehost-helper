@@ -414,6 +414,54 @@ def test_manual_path_accepts_direct_server_jar_path(tmp_path: Path, monkeypatch:
     assert candidate["port"] == 25574
 
 
+def test_manual_path_accepts_nested_server_jar_and_walks_up(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import main
+    from backend.models import ServerDiscoveryPathRequest
+
+    write_properties(tmp_path, {"server-port": 25576}, make_backup=False)
+    nested = tmp_path / "versions" / "forge-1.20.1"
+    nested.mkdir(parents=True)
+    jar_path = nested / "forge-1.20.1-server.jar"
+    jar_path.write_text("fake jar", encoding="utf-8")
+
+    class FakeServerManager:
+        def list_servers(self) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(main, "server_manager", FakeServerManager())
+
+    candidate = main.manual_server_folder(ServerDiscoveryPathRequest(path=str(jar_path)))
+
+    assert candidate["path"] == str(tmp_path.resolve())
+    assert candidate["jar_name"] == "versions/forge-1.20.1/forge-1.20.1-server.jar"
+    assert candidate["port"] == 25576
+
+
+def test_manual_path_accepts_parent_folder_and_walks_deeper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import main
+    from backend.models import ServerDiscoveryPathRequest
+
+    pack_dir = tmp_path / "Downloaded Pack"
+    server_dir = pack_dir / "Server Files"
+    server_dir.mkdir(parents=True)
+    write_properties(server_dir, {"server-port": 25577}, make_backup=False)
+    nested = server_dir / "libraries" / "net" / "minecraft" / "server"
+    nested.mkdir(parents=True)
+    (nested / "minecraft_server-1.21.8.jar").write_text("fake jar", encoding="utf-8")
+
+    class FakeServerManager:
+        def list_servers(self) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(main, "server_manager", FakeServerManager())
+
+    candidate = main.manual_server_folder(ServerDiscoveryPathRequest(path=str(pack_dir)))
+
+    assert candidate["path"] == str(server_dir.resolve())
+    assert candidate["jar_name"] == "libraries/net/minecraft/server/minecraft_server-1.21.8.jar"
+    assert candidate["port"] == 25577
+
+
 def test_discovery_finds_nested_server_jar_layout(tmp_path: Path) -> None:
     from backend.server_discovery import find_server_jar, server_candidate
 
@@ -451,6 +499,34 @@ def test_adopt_existing_server_records_external_path_and_jar(tmp_path: Path) -> 
     assert adopted["jar_name"] == "fabric-server.jar"
     assert adopted["port"] == 25571
     assert manager._server_jar_path(adopted["id"]).name == "fabric-server.jar"
+
+
+def test_adopt_existing_server_preserves_selected_nested_jar(tmp_path: Path) -> None:
+    from backend.models import ServerAdoptRequest
+    from backend.server_manager import ServerManager
+
+    write_properties(tmp_path, {"server-port": 25578}, make_backup=False)
+    (tmp_path / "installer.jar").write_text("not the server jar", encoding="utf-8")
+    nested = tmp_path / "versions" / "forge-1.20.1"
+    nested.mkdir(parents=True)
+    (nested / "forge-1.20.1-server.jar").write_text("fake jar", encoding="utf-8")
+
+    manager = ServerManager.__new__(ServerManager)
+    manager._lock = threading.RLock()
+    manager._processes = {}
+    manager._operations = {}
+    manager._servers = {}
+    manager._save = lambda: None
+
+    adopted = manager.adopt_server(ServerAdoptRequest(
+        path=str(tmp_path),
+        name="Imported Modded Server",
+        jar_name="versions/forge-1.20.1/forge-1.20.1-server.jar",
+        ram_mb=4096,
+    ))
+
+    assert adopted["jar_name"] == "versions/forge-1.20.1/forge-1.20.1-server.jar"
+    assert manager._server_jar_path(adopted["id"]).name == "forge-1.20.1-server.jar"
 
 
 def test_file_manager_sandboxes_and_backs_up_text_files(tmp_path: Path) -> None:

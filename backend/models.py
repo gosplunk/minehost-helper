@@ -57,6 +57,7 @@ class ServerCreateRequest(BaseModel):
 class ServerAdoptRequest(BaseModel):
     path: str = Field(min_length=3, max_length=1000)
     name: str | None = Field(default=None, max_length=80)
+    jar_name: str | None = Field(default=None, max_length=1000)
     ram_mb: int = 4096
 
     @field_validator("name")

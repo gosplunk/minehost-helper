@@ -304,10 +304,16 @@ class ServerManager:
             raise ValueError("Existing server folder was not found")
         if not (server_dir / "server.properties").exists():
             raise ValueError("This folder does not contain server.properties")
-        jar = find_server_jar(server_dir)
+        preferred_jar = None
+        if data.jar_name:
+            jar_candidate = server_dir / data.jar_name.replace("/", os.sep)
+            preferred_jar = ensure_child_path(server_dir, jar_candidate)
+            if not preferred_jar.is_file() or preferred_jar.suffix.lower() != ".jar":
+                raise ValueError("The selected Minecraft server jar was not found inside this server folder")
+        jar = find_server_jar(server_dir, preferred_jar)
         if not jar:
             raise ValueError("This folder does not contain a Minecraft server .jar file")
-        candidate = server_candidate(server_dir)
+        candidate = server_candidate(server_dir, jar)
         properties = read_properties(server_dir)
         base_slug = slugify_name(data.name or candidate["name"])
         slug = base_slug

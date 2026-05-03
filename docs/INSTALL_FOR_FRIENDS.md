@@ -193,4 +193,4 @@ No. The manager web page is for your PC only.
 
 **What if MineHost Helper cannot find my old Minecraft server?**
 
-Open Get Started, choose `Import existing Minecraft server`, then click `Browse for Server Folder`. Select the folder that contains `server.properties`. If the folder picker does not appear, or MineHost Helper says it cannot find the jar, copy the full path to the Minecraft server `.jar` from File Explorer and paste it into the manual path box. Do not select only the world folder.
+Open Get Started, choose `Import existing Minecraft server`, then click `Browse for Server Folder`. Select the main server folder, a folder just above it, or a nearby folder inside it. If MineHost Helper still cannot find the jar, copy the full path to the Minecraft server `.jar` from File Explorer and paste it into the manual path box. This works when modded server packs put the jar one or more folders deeper than `server.properties`. Do not select only the world folder.

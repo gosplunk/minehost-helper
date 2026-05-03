@@ -13,6 +13,8 @@ SERVER_JAR_HINTS = ("server", "minecraft_server", "paper", "spigot", "fabric", "
 MAX_SCAN_DEPTH = 5
 MAX_CANDIDATES = 80
 MAX_JAR_SEARCH_DEPTH = 5
+MAX_SERVER_ROOT_PARENT_DEPTH = 8
+MAX_SERVER_ROOT_CHILD_DEPTH = 6
 IGNORED_JAR_DIRS = {
     ".git",
     ".venv",
@@ -85,10 +87,22 @@ def _jar_score(server_dir: Path, jar_path: Path) -> tuple[int, int, int, str]:
     return (0 if depth == 0 else 1, 0 if exact_server else 1, 0 if hinted else 1, -size, name)
 
 
-def find_server_jar(server_dir: Path) -> Path | None:
+def _is_safe_preferred_jar(server_dir: Path, preferred_jar: Path) -> bool:
+    try:
+        preferred_jar.resolve().relative_to(server_dir)
+    except (OSError, ValueError):
+        return False
+    return preferred_jar.is_file() and preferred_jar.suffix.lower() == ".jar"
+
+
+def find_server_jar(server_dir: Path, preferred_jar: Path | None = None) -> Path | None:
     server_dir = server_dir.expanduser().resolve()
     if server_dir.is_file() and server_dir.suffix.lower() == ".jar":
         return server_dir
+    if preferred_jar:
+        preferred = preferred_jar.expanduser().resolve()
+        if _is_safe_preferred_jar(server_dir, preferred):
+            return preferred
     jars = [
         path for path in server_dir.glob("*.jar")
         if path.is_file()
@@ -115,6 +129,108 @@ def server_jar_reference(server_dir: Path, jar_path: Path | None = None) -> str 
         return jar.resolve().relative_to(server_dir).as_posix()
     except ValueError:
         return jar.name
+
+
+def _has_server_properties(path: Path) -> bool:
+    return path.is_dir() and (path / "server.properties").exists()
+
+
+def _server_root_depth(start: Path, candidate: Path) -> int:
+    try:
+        return len(candidate.relative_to(start).parts)
+    except ValueError:
+        return MAX_SERVER_ROOT_CHILD_DEPTH + 1
+
+
+def _server_root_child_dirs(start: Path) -> list[Path]:
+    found: list[Path] = []
+    stack = [start]
+    ignored = {
+        "$recycle.bin",
+        ".git",
+        ".venv",
+        "__pycache__",
+        "backups",
+        "cache",
+        "crash-reports",
+        "logs",
+        "mods",
+        "node_modules",
+        "plugins",
+        "world",
+        "world_nether",
+        "world_the_end",
+    }
+    while stack:
+        current = stack.pop()
+        if _server_root_depth(start, current) > MAX_SERVER_ROOT_CHILD_DEPTH:
+            continue
+        try:
+            if current != start and _has_server_properties(current):
+                found.append(current)
+                continue
+            children = list(current.iterdir())
+        except (OSError, PermissionError):
+            continue
+        for child in children:
+            if child.is_dir() and child.name.lower() not in ignored:
+                stack.append(child)
+    return sorted(found, key=lambda path: (_server_root_depth(start, path), str(path).lower()))
+
+
+def _server_root_parent_dirs(start: Path) -> list[Path]:
+    found: list[Path] = []
+    current = start
+    for _ in range(MAX_SERVER_ROOT_PARENT_DEPTH + 1):
+        if _has_server_properties(current):
+            found.append(current)
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return found
+
+
+def resolve_server_selection(selected: Path) -> tuple[Path, Path | None]:
+    """Resolve a user-selected folder or jar to the real Minecraft server root.
+
+    Server packs often keep the runnable jar in a nested folder while
+    server.properties remains at the root. Users also commonly select the
+    containing pack folder. This helper accepts those nearby choices and
+    returns the folder that should be used as Minecraft's working directory.
+    """
+    selected = selected.expanduser().resolve()
+    preferred_jar: Path | None = None
+    start_dir = selected
+    if selected.is_file():
+        if selected.suffix.lower() == ".jar":
+            preferred_jar = selected
+            start_dir = selected.parent
+        elif selected.name.lower() == "server.properties":
+            start_dir = selected.parent
+        else:
+            raise ValueError("That path is not a folder, server.properties file, or Minecraft server .jar file.")
+    if not start_dir.is_dir():
+        raise ValueError("That path is not a folder or Minecraft server .jar file.")
+
+    candidates = _server_root_parent_dirs(start_dir)
+    if not preferred_jar:
+        candidates.extend(_server_root_child_dirs(start_dir))
+
+    for server_dir in candidates:
+        jar = find_server_jar(server_dir, preferred_jar)
+        if jar:
+            return server_dir.resolve(), jar.resolve()
+
+    if preferred_jar:
+        raise ValueError(
+            "The selected jar is not inside a nearby folder with server.properties. "
+            "Paste the full jar path, or choose the main server folder or its parent folder."
+        )
+    raise ValueError(
+        "MineHost Helper could not find server.properties and a Minecraft server .jar near that path. "
+        "Choose the main server folder, a parent folder, or paste the full path to the server .jar."
+    )
 
 
 def looks_like_minecraft_server(path: Path) -> bool:
@@ -162,10 +278,10 @@ def _safe_walk(root: Path) -> list[Path]:
     return found
 
 
-def server_candidate(path: Path) -> dict[str, Any]:
+def server_candidate(path: Path, preferred_jar: Path | None = None) -> dict[str, Any]:
     server_dir = path.expanduser().resolve()
     props = read_properties(server_dir)
-    jar = find_server_jar(server_dir)
+    jar = find_server_jar(server_dir, preferred_jar)
     eula_path = server_dir / "eula.txt"
     eula_accepted = "eula=true" in eula_path.read_text(encoding="utf-8", errors="ignore").lower() if eula_path.exists() else False
     world_name = str(props.get("level-name", "world"))
@@ -225,7 +341,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = 'Select the folder that contains server.properties and your Minecraft server .jar'
+$dialog.Description = 'Select the Minecraft server folder, a parent folder, or a nearby folder inside it'
 $dialog.ShowNewFolderButton = $false
 if ('{_powershell_quote(selected_path)}') {{
   $dialog.SelectedPath = '{_powershell_quote(selected_path)}'

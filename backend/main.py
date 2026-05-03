@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import app_settings, auth_manager, backup_scheduler, discord_webhook, firewall, java_manager, minecraft_downloader, networking, update_checker
-from .server_discovery import browse_for_server_folder, find_server_jar, server_candidate, scan_existing_servers
+from .server_discovery import browse_for_server_folder, resolve_server_selection, server_candidate, scan_existing_servers
 from .config import APP_NAME, HOST, PORT, STATIC_DIR, ensure_directories
 from .models import (
     AdminCommandRequest,
@@ -278,18 +278,9 @@ def manual_server_folder(data: ServerDiscoveryPathRequest) -> dict[str, Any]:
 
 def _manual_discovery_candidate(selected: Path) -> dict[str, Any]:
     if not selected.exists():
-        raise ValueError("That folder was not found. Choose the main Minecraft server folder.")
-    if selected.is_file() and selected.suffix.lower() == ".jar":
-        selected = selected.parent
-    if not selected.is_dir():
-        raise ValueError("That path is not a folder or Minecraft server .jar file. Choose the main Minecraft server folder.")
-    if not (selected / "server.properties").exists():
-        raise ValueError("That folder does not contain server.properties. Choose the main Minecraft server folder, not the world folder.")
-    if not find_server_jar(selected):
-        jar_like = sorted(path.name for path in selected.glob("*") if path.is_file() and "jar" in path.name.lower())
-        suffix = f" Files with 'jar' in the name here: {', '.join(jar_like[:5])}." if jar_like else ""
-        raise ValueError(f"That folder does not contain a Minecraft server .jar file. Choose the folder with server.properties and the server jar, or paste the full path to the .jar file.{suffix}")
-    candidate = server_candidate(selected)
+        raise ValueError("That path was not found. Choose the Minecraft server folder, a nearby parent folder, or paste the full server .jar path.")
+    server_dir, jar = resolve_server_selection(selected)
+    candidate = server_candidate(server_dir, jar)
     existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
     return {**candidate, "already_added": candidate["path"].lower() in existing_paths, "manual": True}
 

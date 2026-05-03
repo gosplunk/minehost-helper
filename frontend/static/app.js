@@ -523,7 +523,7 @@ function renderImportSetup() {
             <button onclick="browseExistingServerFolder()">Browse for Server Folder</button>
             <button onclick="chooseSetupMode('guided')">Create New Instead</button>
           </div>
-          <p class="callout info">Can’t find it? Click Browse and choose the folder that contains <code>server.properties</code>. If the jar is hard to find, paste the full path to the <code>.jar</code> file below.</p>
+          <p class="callout info">Can’t find it? Click Browse and choose the server folder, a folder just above it, or a nearby folder inside it. If the jar is buried deeper, paste the full path to the <code>.jar</code> file below.</p>
           <div class="manual-path-card">
             <label class="field">${fieldLabel("Or paste the server folder or jar path", "Open the folder or jar in File Explorer, click the address bar, copy the path, then paste it here.")}<input id="manual-server-path" placeholder="C:\\Users\\YourName\\Desktop\\Minecraft Server\\server.jar"></label>
             <button onclick="useManualServerPath()">Use This Path</button>
@@ -532,7 +532,7 @@ function renderImportSetup() {
         </div>
         <div class="card">
           <h3>What counts as a server?</h3>
-          <p class="muted">A folder with a Minecraft server jar, <code>server.properties</code>, or an existing world folder. Imported servers stay where they are.</p>
+          <p class="muted">A Minecraft server normally has <code>server.properties</code> at the main server folder. Modded servers may keep the runnable jar one or more folders deeper. Imported servers stay where they are.</p>
           <p class="callout info">After import, the Dashboard will show Start, Stop, Console, Backups, and Networking for that server.</p>
         </div>
       </div>
@@ -909,7 +909,7 @@ async function adoptExistingServer(index) {
   await runAction("Existing server added", async () => {
     const server = await api("/api/servers/adopt", {
       method: "POST",
-      body: JSON.stringify({ path: candidate.path, name, ram_mb: 4096 }),
+      body: JSON.stringify({ path: candidate.path, name, jar_name: candidate.jar_name, ram_mb: 4096 }),
     });
     state.selectedId = server.id;
     localStorage.setItem("selectedServer", server.id);
