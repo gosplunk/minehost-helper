@@ -452,54 +452,66 @@ function checked(value) {
   return value ? "checked" : "";
 }
 
+function hoverTip(text) {
+  return `<span class="hover-tip" tabindex="0" aria-label="${escapeHtml(text)}" data-tip="${escapeHtml(text)}">?</span>`;
+}
+
+function fieldLabel(label, tip) {
+  return `<span class="field-label">${escapeHtml(label)}${hoverTip(tip)}</span>`;
+}
+
+function checkboxLabel(label, tip) {
+  return `${escapeHtml(label)}${hoverTip(tip)}`;
+}
+
 function guidedStepFields(step, draft) {
   if (step === 1) {
     return `
       <div class="form-grid">
-        <label class="field">Server name<input name="name" required value="${escapeHtml(draft.name)}" placeholder="Family Minecraft"></label>
-        <label class="field">Minecraft version<select name="version" id="guided-version-select"><option value="latest">Latest stable release</option></select></label>
+        <label class="field">${fieldLabel("Server name", "The friendly name MineHost Helper shows in the app. Friends do not type this to join.")}<input name="name" required value="${escapeHtml(draft.name)}" placeholder="Family Minecraft"></label>
+        <label class="field">${fieldLabel("Minecraft version", "Latest stable is recommended. Pick a specific version only if friends or mods require it.")}<select name="version" id="guided-version-select"><option value="latest">Latest stable release</option></select></label>
       </div>
       <p class="callout info">Use a name people recognize. You can rename it later.</p>`;
   }
   if (step === 2) {
     return `
       <div class="choice-grid compact">
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="2048" ${draft.ramChoice === "2048" ? "checked" : ""}><strong>2 GB</strong><span>Small server, a few friends.</span></label>
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="4096" ${draft.ramChoice === "4096" ? "checked" : ""}><strong>4 GB</strong><span>Recommended for most servers.</span></label>
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="6144" ${draft.ramChoice === "6144" ? "checked" : ""}><strong>6 GB</strong><span>Bigger worlds or more players.</span></label>
-        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="custom" ${draft.ramChoice === "custom" ? "checked" : ""}><strong>Custom</strong><span>Choose your own memory amount.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="2048" ${draft.ramChoice === "2048" ? "checked" : ""}><strong>2 GB ${hoverTip("Good for a small vanilla server with a few friends. Use more if the world lags.")}</strong><span>Small server, a few friends.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="4096" ${draft.ramChoice === "4096" ? "checked" : ""}><strong>4 GB ${hoverTip("Best default for most home Minecraft servers. Enough room without wasting too much PC memory.")}</strong><span>Recommended for most servers.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="6144" ${draft.ramChoice === "6144" ? "checked" : ""}><strong>6 GB ${hoverTip("Use this for bigger worlds, more players, or heavier exploration. Your PC must have enough free memory.")}</strong><span>Bigger worlds or more players.</span></label>
+        <label class="choice-card radio-choice"><input type="radio" name="ramChoice" value="custom" ${draft.ramChoice === "custom" ? "checked" : ""}><strong>Custom ${hoverTip("Advanced. Enter memory in MB. 4096 MB equals 4 GB.")}</strong><span>Choose your own memory amount.</span></label>
       </div>
       <div class="form-grid" style="margin-top:16px">
-        <label class="field">Custom RAM MB<input name="customRam" type="number" min="512" max="65536" value="${escapeHtml(draft.customRam)}"></label>
-        <label class="field">Max players<input name="max_players" type="number" min="1" max="200" value="${escapeHtml(draft.max_players)}"></label>
+        <label class="field">${fieldLabel("Custom RAM MB", "Only used when Custom is selected. 2048=2 GB, 4096=4 GB, 6144=6 GB.")}<input name="customRam" type="number" min="512" max="65536" value="${escapeHtml(draft.customRam)}"></label>
+        <label class="field">${fieldLabel("Max players", "The maximum number of people allowed online at once. It does not reserve performance by itself.")}<input name="max_players" type="number" min="1" max="200" value="${escapeHtml(draft.max_players)}"></label>
       </div>`;
   }
   if (step === 3) {
     return `
       <div class="form-grid">
-        <label class="field">World name<input name="world_name" value="${escapeHtml(draft.world_name)}"></label>
-        <label class="field">Gamemode<select name="gamemode">
+        <label class="field">${fieldLabel("World name", "The folder name for the Minecraft world. Keep it simple, like world or family-world.")}<input name="world_name" value="${escapeHtml(draft.world_name)}"></label>
+        <label class="field">${fieldLabel("Gamemode", "Survival is normal Minecraft. Creative gives unlimited blocks. Adventure/Spectator are special modes.")}<select name="gamemode">
           ${option("survival", "Survival", draft.gamemode)}
           ${option("creative", "Creative", draft.gamemode)}
           ${option("adventure", "Adventure", draft.gamemode)}
           ${option("spectator", "Spectator", draft.gamemode)}
         </select></label>
-        <label class="field">Difficulty<select name="difficulty">
+        <label class="field">${fieldLabel("Difficulty", "Controls hostile mobs and damage. Normal is a good default; Peaceful removes hostile mob pressure.")}<select name="difficulty">
           ${option("peaceful", "Peaceful", draft.difficulty)}
           ${option("easy", "Easy", draft.difficulty)}
           ${option("normal", "Normal", draft.difficulty)}
           ${option("hard", "Hard", draft.difficulty)}
         </select></label>
-        <label class="field">Message of the day<input name="motd" value="${escapeHtml(draft.motd)}"></label>
+        <label class="field">${fieldLabel("Message of the day", "The short message players see in their Minecraft multiplayer server list.")}<input name="motd" value="${escapeHtml(draft.motd)}"></label>
       </div>`;
   }
   if (step === 4) {
     return `
       <div class="form-grid">
-        <label class="field">Minecraft port<input name="port" type="number" min="1" max="65535" value="${escapeHtml(draft.port)}"></label>
-        <label class="field"><span><input name="online_mode" type="checkbox" ${checked(draft.online_mode)}> Require real Minecraft accounts</span></label>
-        <label class="field"><span><input name="whitelist" type="checkbox" ${checked(draft.whitelist)}> Use a whitelist</span></label>
-        <label class="field"><span><input name="command_blocks" type="checkbox" ${checked(draft.command_blocks)}> Allow command blocks</span></label>
+        <label class="field">${fieldLabel("Minecraft port", "The network door Minecraft listens on. 25565 is the default and easiest for router forwarding.")}<input name="port" type="number" min="1" max="65535" value="${escapeHtml(draft.port)}"></label>
+        <label class="field"><span><input name="online_mode" type="checkbox" ${checked(draft.online_mode)}> ${checkboxLabel("Require real Minecraft accounts", "Recommended. Keeps cracked/offline usernames from joining and lets Minecraft verify players.")}</span></label>
+        <label class="field"><span><input name="whitelist" type="checkbox" ${checked(draft.whitelist)}> ${checkboxLabel("Use a whitelist", "Only players you add can join. Best for family/friend servers.")}</span></label>
+        <label class="field"><span><input name="command_blocks" type="checkbox" ${checked(draft.command_blocks)}> ${checkboxLabel("Allow command blocks", "Advanced. Needed for some maps, but command blocks can run powerful in-game commands.")}</span></label>
       </div>
       <p class="callout">Keep port <code>25565</code> unless you have a reason to change it. Friends outside your house still need router forwarding.</p>`;
   }
@@ -513,7 +525,7 @@ function guidedStepFields(step, draft) {
       ${quickStat("Difficulty", draft.difficulty)}
     </div>
     <p class="callout">Minecraft requires EULA acceptance before the server can start. MineHost Helper writes <code>eula=true</code> only after you explicitly check this box.</p>
-    <label class="field"><span><input name="accepted_eula" type="checkbox" ${checked(draft.accepted_eula)} required> I accept the Minecraft EULA</span></label>`;
+    <label class="field"><span><input name="accepted_eula" type="checkbox" ${checked(draft.accepted_eula)} required> ${checkboxLabel("I accept the Minecraft EULA", "Required by Mojang. MineHost Helper will not start a server until you explicitly accept it.")}</span></label>`;
 }
 
 function saveGuidedStep() {
@@ -609,20 +621,20 @@ function renderManualSetup() {
       </div>
       <form id="setup-form" class="card">
         <div class="form-grid">
-          <label class="field">Server name<input name="name" required value="Family Minecraft"></label>
-          <label class="field">Minecraft version<select name="version" id="manual-version-select"><option value="latest">Latest stable release</option></select></label>
-          <label class="field">RAM<select name="ramChoice"><option value="4096">4 GB recommended</option><option value="2048">2 GB small</option><option value="6144">6 GB larger</option><option value="custom">Custom</option></select></label>
-          <label class="field">Custom RAM MB<input name="customRam" type="number" min="512" max="65536" value="4096"></label>
-          <label class="field">Server port<input name="port" type="number" min="1" max="65535" value="25565"></label>
-          <label class="field">World name<input name="world_name" value="world"></label>
-          <label class="field">Gamemode<select name="gamemode"><option value="survival">Survival</option><option value="creative">Creative</option><option value="adventure">Adventure</option><option value="spectator">Spectator</option></select></label>
-          <label class="field">Difficulty<select name="difficulty"><option value="peaceful">Peaceful</option><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label>
-          <label class="field">Max players<input name="max_players" type="number" min="1" max="200" value="10"></label>
-          <label class="field">Message of the day<input name="motd" value="A MineHost Helper server"></label>
-          <label class="field"><span><input name="online_mode" type="checkbox" checked> Require real Minecraft accounts</span></label>
-          <label class="field"><span><input name="whitelist" type="checkbox"> Use a whitelist</span></label>
-          <label class="field"><span><input name="command_blocks" type="checkbox"> Allow command blocks</span></label>
-          <label class="field"><span><input name="accepted_eula" type="checkbox" required> I accept the Minecraft EULA</span></label>
+          <label class="field">${fieldLabel("Server name", "The friendly name MineHost Helper shows in the app. Friends do not type this to join.")}<input name="name" required value="Family Minecraft"></label>
+          <label class="field">${fieldLabel("Minecraft version", "Latest stable is recommended. Pick a specific version only if friends or mods require it.")}<select name="version" id="manual-version-select"><option value="latest">Latest stable release</option></select></label>
+          <label class="field">${fieldLabel("RAM", "How much memory Minecraft can use. 4 GB is recommended for most home servers.")}<select name="ramChoice"><option value="4096">4 GB recommended</option><option value="2048">2 GB small</option><option value="6144">6 GB larger</option><option value="custom">Custom</option></select></label>
+          <label class="field">${fieldLabel("Custom RAM MB", "Only used when Custom is selected. 2048=2 GB, 4096=4 GB, 6144=6 GB.")}<input name="customRam" type="number" min="512" max="65536" value="4096"></label>
+          <label class="field">${fieldLabel("Server port", "The network door Minecraft listens on. 25565 is the default and easiest for router forwarding.")}<input name="port" type="number" min="1" max="65535" value="25565"></label>
+          <label class="field">${fieldLabel("World name", "The folder name for the Minecraft world. Keep it simple, like world or family-world.")}<input name="world_name" value="world"></label>
+          <label class="field">${fieldLabel("Gamemode", "Survival is normal Minecraft. Creative gives unlimited blocks. Adventure/Spectator are special modes.")}<select name="gamemode"><option value="survival">Survival</option><option value="creative">Creative</option><option value="adventure">Adventure</option><option value="spectator">Spectator</option></select></label>
+          <label class="field">${fieldLabel("Difficulty", "Controls hostile mobs and damage. Normal is a good default; Peaceful removes hostile mob pressure.")}<select name="difficulty"><option value="peaceful">Peaceful</option><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label>
+          <label class="field">${fieldLabel("Max players", "The maximum number of people allowed online at once. It does not reserve performance by itself.")}<input name="max_players" type="number" min="1" max="200" value="10"></label>
+          <label class="field">${fieldLabel("Message of the day", "The short message players see in their Minecraft multiplayer server list.")}<input name="motd" value="A MineHost Helper server"></label>
+          <label class="field"><span><input name="online_mode" type="checkbox" checked> ${checkboxLabel("Require real Minecraft accounts", "Recommended. Keeps cracked/offline usernames from joining and lets Minecraft verify players.")}</span></label>
+          <label class="field"><span><input name="whitelist" type="checkbox"> ${checkboxLabel("Use a whitelist", "Only players you add can join. Best for family/friend servers.")}</span></label>
+          <label class="field"><span><input name="command_blocks" type="checkbox"> ${checkboxLabel("Allow command blocks", "Advanced. Needed for some maps, but command blocks can run powerful in-game commands.")}</span></label>
+          <label class="field"><span><input name="accepted_eula" type="checkbox" required> ${checkboxLabel("I accept the Minecraft EULA", "Required by Mojang. MineHost Helper will not start a server until you explicitly accept it.")}</span></label>
         </div>
         <p class="callout">Minecraft requires EULA acceptance before the server can start. MineHost Helper writes <code>eula=true</code> only after you explicitly check this box.</p>
         <button id="create-server-button" class="primary" type="submit">Create Server</button>

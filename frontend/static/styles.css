@@ -710,12 +710,106 @@ details,
   font-weight: 900;
 }
 
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .field span {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   color: var(--ink);
   font-weight: 850;
+}
+
+.hover-tip {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #f9ffe9;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 45%),
+    linear-gradient(135deg, var(--grass-2), var(--leaf));
+  border: 1px solid rgba(31, 111, 67, 0.32);
+  border-radius: 7px;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
+  cursor: help;
+  font-size: 0.78rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+}
+
+.field .hover-tip,
+.choice-card .hover-tip {
+  display: inline-grid;
+  align-items: center;
+  justify-content: center;
+  place-items: center;
+  gap: 0;
+  color: #f9ffe9;
+  font-size: 0.78rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.hover-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 40;
+  width: min(280px, 72vw);
+  padding: 11px 12px;
+  color: #f7ffe8;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), transparent),
+    #111a12;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: var(--shadow-tight);
+  font-size: 0.84rem;
+  font-weight: 850;
+  line-height: 1.38;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  text-transform: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.hover-tip::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  z-index: 41;
+  width: 10px;
+  height: 10px;
+  background: #111a12;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) rotate(45deg);
+  transition: opacity 0.14s ease;
+}
+
+.hover-tip:hover::after,
+.hover-tip:focus::after,
+.hover-tip:hover::before,
+.hover-tip:focus::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.hover-tip:hover::before,
+.hover-tip:focus::before {
+  transform: translateX(-50%) rotate(45deg);
 }
 
 input,
