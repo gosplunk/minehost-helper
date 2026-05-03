@@ -12,9 +12,12 @@ Friends receive a ZIP containing:
 
 - `MineHostHelperSetup-FriendSigned.exe`
 - `MineHostHelper-FriendPublisher.cer`
+- `START HERE - Install Guide.html`
 - `Install MineHost Helper Friend Publisher Certificate.bat`
 - `InstallFriendPublisherCertificate.ps1`
+- `INSTALL_FOR_FRIENDS.md`
 - This document
+- `screenshots/`
 
 They run the certificate helper first, approve the Windows administrator prompt, then run the signed installer.
 

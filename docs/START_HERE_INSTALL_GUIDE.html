@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install MineHost Helper</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --grass: #2f8f46;
+      --grass-dark: #1f6b34;
+      --stone: #eef1e8;
+      --ink: #172017;
+      --muted: #546154;
+      --card: #ffffff;
+      --line: #d9dfd3;
+      --warn: #fff4cf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(47, 143, 70, .18), transparent 34%),
+        linear-gradient(315deg, rgba(112, 84, 52, .12), transparent 28%),
+        var(--stone);
+    }
+    main {
+      width: min(980px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 56px;
+    }
+    .hero {
+      background: linear-gradient(135deg, var(--grass), var(--grass-dark));
+      color: white;
+      border-radius: 28px;
+      padding: 34px;
+      box-shadow: 0 24px 70px rgba(24, 63, 32, .24);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 7vw, 64px);
+      line-height: .95;
+      letter-spacing: -0.05em;
+    }
+    .hero p {
+      max-width: 760px;
+      margin: 0;
+      font-size: 19px;
+      color: rgba(255,255,255,.88);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin: 22px 0;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 12px 40px rgba(24, 42, 20, .08);
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .number {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 15px;
+      background: var(--grass);
+      color: white;
+      font-weight: 800;
+      font-size: 22px;
+    }
+    h2, h3 { margin: 0 0 12px; letter-spacing: -0.02em; }
+    p { color: var(--muted); line-height: 1.55; }
+    code {
+      background: #edf3ea;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 2px 7px;
+      color: #1d5d30;
+      font-weight: 700;
+    }
+    .warning {
+      background: var(--warn);
+      border-color: #e2c866;
+    }
+    img {
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      box-shadow: 0 16px 42px rgba(24, 42, 20, .12);
+      margin-top: 12px;
+    }
+    ol {
+      margin: 0;
+      padding-left: 22px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    li { margin: 6px 0; }
+    a { color: #126a32; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Install MineHost Helper</h1>
+      <p>Follow these steps exactly. You only need two clicks after extracting the ZIP: trust the friend publisher certificate, then run the installer.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card step">
+        <div class="number">1</div>
+        <div>
+          <h2>Extract the ZIP</h2>
+          <p>Right click <code>MineHostHelper-FriendSigned.zip</code> and choose <code>Extract All</code>. Do not run files from inside the ZIP preview.</p>
+        </div>
+      </article>
+      <article class="card step">
+        <div class="number">2</div>
+        <div>
+          <h2>Run the certificate helper</h2>
+          <p>Double click <code>Install MineHost Helper Friend Publisher Certificate.bat</code>. Approve the Windows administrator prompt.</p>
+        </div>
+      </article>
+      <article class="card step">
+        <div class="number">3</div>
+        <div>
+          <h2>Run the installer</h2>
+          <p>Double click <code>MineHostHelperSetup-FriendSigned.exe</code>. Follow the installer and let it open the browser.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="card warning">
+      <h2>Only approve the certificate if you trust the friend who sent this</h2>
+      <p>The certificate tells Windows to trust MineHost Helper friend builds from that person. If Microsoft Defender says the file is a virus or blocks it with <code>WinError 225</code>, stop and ask your friend. Do not disable Defender.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>What file should I click?</h2>
+        <ol>
+          <li>First: <code>Install MineHost Helper Friend Publisher Certificate.bat</code></li>
+          <li>Second: <code>MineHostHelperSetup-FriendSigned.exe</code></li>
+          <li>Do not click <code>Source code</code> downloads from GitHub.</li>
+        </ol>
+      </article>
+      <article class="card">
+        <h2>After install</h2>
+        <ol>
+          <li>Create your MineHost Helper web login.</li>
+          <li>Choose <code>Setup new server, guided</code>.</li>
+          <li>Use the Dashboard buttons to start, stop, and copy the friend address.</li>
+        </ol>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Login page</h2>
+      <p>The browser opens to the local MineHost Helper login.</p>
+      <img src="screenshots/01-login.png" alt="MineHost Helper login">
+    </section>
+
+    <section class="card">
+      <h2>Choose guided setup</h2>
+      <p>Pick <code>Setup new server, guided</code> unless you already have a Minecraft server folder.</p>
+      <img src="screenshots/02-get-started.png" alt="MineHost Helper get started page">
+    </section>
+
+    <section class="card">
+      <h2>Use the Dashboard</h2>
+      <p>Start or stop the server and copy the address for friends from the Dashboard.</p>
+      <img src="screenshots/03-dashboard.png" alt="MineHost Helper dashboard">
+    </section>
+  </main>
+</body>
+</html>

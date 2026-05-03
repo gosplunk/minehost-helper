@@ -22,7 +22,10 @@ Copy-Item ".\dist-installer\MineHostHelperSetup.exe" (Join-Path $FriendDist "Min
 Copy-Item (Join-Path $Root $OutputDirectory "MineHostHelper-FriendPublisher.cer") $FriendDist -Force
 Copy-Item (Join-Path $Root $OutputDirectory "InstallFriendPublisherCertificate.ps1") $FriendDist -Force
 Copy-Item (Join-Path $Root $OutputDirectory "Install MineHost Helper Friend Publisher Certificate.bat") $FriendDist -Force
+Copy-Item ".\docs\START_HERE_INSTALL_GUIDE.html" (Join-Path $FriendDist "START HERE - Install Guide.html") -Force
+Copy-Item ".\docs\INSTALL_FOR_FRIENDS.md" $FriendDist -Force
 Copy-Item ".\docs\FRIEND_MODE_SIGNING.md" $FriendDist -Force
+Copy-Item ".\docs\screenshots" (Join-Path $FriendDist "screenshots") -Recurse -Force
 
 Compress-Archive -Path (Join-Path $FriendDist "*") -DestinationPath ".\dist-friend\MineHostHelper-FriendSigned.zip" -CompressionLevel Optimal -Force
 

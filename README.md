@@ -4,7 +4,21 @@
 
 **Easy installer for friends:** [Download MineHostHelper-FriendSigned.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-FriendSigned.zip)
 
-This ZIP contains `MineHostHelperSetup-FriendSigned.exe`. Friends should unzip it, run `Install MineHost Helper Friend Publisher Certificate.bat`, approve the Windows prompt, then run `MineHostHelperSetup-FriendSigned.exe`.
+This ZIP contains `MineHostHelperSetup-FriendSigned.exe` and a double-click visual guide named `START HERE - Install Guide.html`. Friends should unzip it, open the guide if needed, run `Install MineHost Helper Friend Publisher Certificate.bat`, approve the Windows prompt, then run `MineHostHelperSetup-FriendSigned.exe`.
+
+**Send this to friends:** [Friend Install Guide](docs/INSTALL_FOR_FRIENDS.md)
+
+Do not download `Source code (zip)` from GitHub unless you are developing the app. Normal users want `MineHostHelper-FriendSigned.zip`.
+
+### Friend Install Steps
+
+1. Download [MineHostHelper-FriendSigned.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-FriendSigned.zip).
+2. Right click the ZIP and choose `Extract All`.
+3. Open the extracted folder.
+4. Double click `Install MineHost Helper Friend Publisher Certificate.bat`.
+5. Approve the Windows administrator prompt.
+6. Double click `MineHostHelperSetup-FriendSigned.exe`.
+7. Follow the installer, then choose `Setup new server, guided` when the browser opens.
 
 **Defender-safe fallback:** [Download MineHostHelper-Portable.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-Portable.zip)
 
