@@ -4,7 +4,7 @@
 
 **Download the installer:** [MineHostHelperSetup.exe](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe)
 
-Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds and backups, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
+Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. Setup checks and prepares the bundled Eclipse Temurin Java runtime during install by default so first server launch is less surprising. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds and backups, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
 
 If you are viewing a private GitHub repo, you must be signed into a GitHub account that has access to this repository before the download link will work.
 
@@ -36,7 +36,7 @@ Requirements for source mode:
 
 - Windows 10 or Windows 11.
 - Python 3.10 or newer.
-- Internet access on first use for Python packages, Eclipse Temurin Java if needed, and Mojang server jars.
+- Internet access during install for Eclipse Temurin Java if needed, and on first server creation for Mojang server jars.
 
 If Python is missing, the launcher explains the problem and can ask to install Python with `winget`. If `winget` is not available, install Python from `https://www.python.org/downloads/windows/` and check `Add python.exe to PATH`.
 
@@ -45,7 +45,7 @@ If Python is missing, the launcher explains the problem and can ask to install P
 - Creates `.venv` in source mode and installs Python dependencies from `requirements.txt`.
 - Starts the FastAPI backend on `127.0.0.1`.
 - Opens the local web UI.
-- Downloads a safe OpenJDK runtime when needed.
+- Checks/downloads a safe Eclipse Temurin OpenJDK runtime during install by default. The Setup Wizard can retry later if the network blocks the Java download.
 - Downloads Minecraft server jars from Mojang's official version manifest.
 - Keeps app data local to the install/source folder.
 

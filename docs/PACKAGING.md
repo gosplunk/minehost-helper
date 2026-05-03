@@ -32,6 +32,7 @@ Installer behavior:
 - Detects an existing install before copying files.
 - Offers Update / Repair to keep servers, backups, Java runtimes, logs, and app settings.
 - Offers Clean Install to remove the selected MineHost Helper install folder and start over after explicit confirmation.
+- Checks and prepares the bundled Eclipse Temurin Java runtime during install by default.
 - Installs for the current Windows user without requiring Administrator permission.
 - Creates Start Menu and optional Desktop shortcuts.
 - Registers MineHost Helper in Windows Apps & Features under HKCU.
@@ -147,5 +148,5 @@ Before publishing a GitHub release:
 - Add GitHub Actions release builds.
 - Add optional code signing.
 - Add an auto-update flow with explicit user approval.
-- Consider bundling a known-good Java runtime to reduce first-run download issues.
+- Java is prepared during setup by default, but still downloads from Eclipse Adoptium instead of being bundled in the installer. Consider bundling a known-good Java runtime later if you want fully offline installs or fewer first-install network failures.
 - Add release artifact checksums.

@@ -12,7 +12,7 @@ from tkinter import messagebox
 
 import uvicorn
 
-from backend import app_settings
+from backend import app_settings, java_manager
 from backend.config import APP_NAME, DEFAULT_MANAGER_PORT, ROOT_DIR
 from backend.server_manager import server_manager
 from backend.utils import find_free_port
@@ -260,11 +260,22 @@ class LauncherApp:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--minimized", action="store_true")
+    parser.add_argument("--prepare-java", action="store_true", help="Download or verify the bundled Java runtime, then exit.")
+    parser.add_argument("--java-version", type=int, default=java_manager.DEFAULT_JAVA_FEATURE_VERSION)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.prepare_java:
+        try:
+            java_manager.install_temurin_jre(args.java_version)
+            (ROOT_DIR / "java-setup-error.txt").unlink(missing_ok=True)
+        except Exception as exc:
+            message = str(exc)
+            (ROOT_DIR / "java-setup-error.txt").write_text(message, encoding="utf-8")
+            raise SystemExit(1)
+        return
     LauncherApp(start_minimized=args.minimized).run()
 
 

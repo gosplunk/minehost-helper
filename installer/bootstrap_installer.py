@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import os
 import shutil
 import subprocess
@@ -11,13 +12,21 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 APP_NAME = "MineHost Helper"
-APP_VERSION = "0.1.8"
+APP_VERSION = "0.1.9"
 PUBLISHER = "MineHost Helper"
 EXE_NAME = "MineHostHelper.exe"
 UNINSTALL_EXE_NAME = "Uninstall MineHost Helper.exe"
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\MineHostHelper"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_VALUE_NAME = "MineHost Helper"
+JAVA_FEATURE_VERSION = 25
+
+
+@dataclass
+class InstallResult:
+    app_path: Path
+    java_ready: bool
+    java_message: str
 
 
 def bundle_dir() -> Path:
@@ -115,6 +124,28 @@ def stop_running_app() -> None:
     )
 
 
+def prepare_java_runtime(app_exe: Path) -> tuple[bool, str]:
+    error_file = app_exe.parent / "java-setup-error.txt"
+    error_file.unlink(missing_ok=True)
+    result = subprocess.run(
+        [str(app_exe), "--prepare-java", "--java-version", str(JAVA_FEATURE_VERSION)],
+        cwd=app_exe.parent,
+        capture_output=True,
+        text=True,
+        timeout=420,
+        check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    output = (result.stderr or result.stdout or "").strip()
+    if result.returncode == 0:
+        return True, f"Temurin Java {JAVA_FEATURE_VERSION} is ready."
+    if error_file.exists():
+        output = error_file.read_text(encoding="utf-8", errors="replace").strip()
+    if not output:
+        output = f"Java setup exited with code {result.returncode}."
+    return False, output
+
+
 def schedule_delete_file(path: Path) -> None:
     script = f"Start-Sleep -Seconds 3; Remove-Item -LiteralPath '{powershell_quote(path)}' -Force -ErrorAction SilentlyContinue"
     subprocess.Popen(
@@ -183,7 +214,8 @@ def install(
     create_desktop_shortcut: bool = True,
     launch_after: bool = True,
     clean_existing: bool = False,
-) -> Path:
+    prepare_java: bool = True,
+) -> InstallResult:
     source = payload_exe()
     uninstaller_source = payload_uninstaller()
     if not source.exists():
@@ -217,9 +249,24 @@ def install(
 
     register_uninstaller(target_dir)
 
+    java_ready = False
+    java_message = "Java setup was skipped."
+    if prepare_java:
+        try:
+            java_ready, java_message = prepare_java_runtime(app_target)
+        except subprocess.TimeoutExpired:
+            java_message = (
+                "Java setup took too long and was skipped. Open MineHost Helper and click "
+                "Download Temurin Java Now before starting a server."
+            )
+        except Exception as exc:
+            java_message = f"Java setup could not finish: {exc}"
+        if not java_ready:
+            (target_dir / "java-setup-warning.txt").write_text(java_message, encoding="utf-8")
+
     if launch_after:
         subprocess.Popen([str(app_target)], cwd=target_dir)
-    return app_target
+    return InstallResult(app_target, java_ready, java_message)
 
 
 def uninstall(target_dir: Path | None = None, keep_data: bool = False, silent: bool = False) -> None:
@@ -271,9 +318,12 @@ class InstallerUi:
         self.root.configure(bg="#fffdf6")
         self.desktop_var = tk.BooleanVar(value=True)
         self.launch_var = tk.BooleanVar(value=True)
+        self.prepare_java_var = tk.BooleanVar(value=True)
+        self.status_var = tk.StringVar(value="")
         self.installed_dir = read_installed_dir()
         self.installed_version = read_installed_version()
         self.install_dir_var = tk.StringVar(value=str(self.installed_dir or default_install_dir()))
+        self.install_buttons: list[tk.Button] = []
         self._build()
         self._fit_window_to_content()
 
@@ -364,9 +414,22 @@ class InstallerUi:
             font=("Segoe UI", 10),
         ).pack(anchor="w", pady=(4, 16))
 
+        tk.Checkbutton(
+            frame,
+            text=f"Prepare bundled Temurin Java {JAVA_FEATURE_VERSION} now (recommended)",
+            variable=self.prepare_java_var,
+            bg="#fffdf6",
+            fg="#243023",
+            activebackground="#fffdf6",
+            font=("Segoe UI", 10),
+        ).pack(anchor="w", pady=(0, 16))
+
         tk.Label(
             frame,
-            text="An uninstaller will be added to Windows Apps & Features and the Start Menu.",
+            text=(
+                "An uninstaller will be added to Windows Apps & Features and the Start Menu. "
+                "Preparing Java may take a few minutes on first install."
+            ),
             font=("Segoe UI", 9),
             bg="#eef7e8",
             fg="#1f6d36",
@@ -376,11 +439,21 @@ class InstallerUi:
             justify="left",
         ).pack(fill="x", pady=(0, 18))
 
+        tk.Label(
+            frame,
+            textvariable=self.status_var,
+            font=("Segoe UI", 9, "bold"),
+            bg="#fffdf6",
+            fg="#687466",
+            wraplength=620,
+            justify="left",
+        ).pack(fill="x", pady=(0, 12))
+
         button_row = tk.Frame(frame, bg="#fffdf6")
         button_row.pack(fill="x")
 
         primary_text = "Update / Repair" if self.installed_dir else "Install"
-        tk.Button(
+        primary_button = tk.Button(
             button_row,
             text=primary_text,
             command=lambda: self._install_clicked(clean_existing=False),
@@ -392,10 +465,12 @@ class InstallerUi:
             padx=22,
             pady=10,
             font=("Segoe UI", 10, "bold"),
-        ).pack(side="left")
+        )
+        primary_button.pack(side="left")
+        self.install_buttons.append(primary_button)
 
         if self.installed_dir:
-            tk.Button(
+            clean_button = tk.Button(
                 button_row,
                 text="Clean Install",
                 command=lambda: self._install_clicked(clean_existing=True),
@@ -407,7 +482,9 @@ class InstallerUi:
                 padx=22,
                 pady=10,
                 font=("Segoe UI", 10, "bold"),
-            ).pack(side="left", padx=(10, 0))
+            )
+            clean_button.pack(side="left", padx=(10, 0))
+            self.install_buttons.append(clean_button)
 
         tk.Button(
             button_row,
@@ -431,6 +508,8 @@ class InstallerUi:
 
     def _install_clicked(self, clean_existing: bool) -> None:
         try:
+            for button in self.install_buttons:
+                button.configure(state="disabled")
             if clean_existing:
                 message = (
                     "Clean Install will remove the existing MineHost Helper install folder before reinstalling.\n\n"
@@ -439,18 +518,35 @@ class InstallerUi:
                     "Use Update / Repair instead if you want to keep existing Minecraft worlds."
                 )
                 if not messagebox.askyesno("Clean Install", message, icon="warning"):
+                    for button in self.install_buttons:
+                        button.configure(state="normal")
                     return
-            target = install(
+            self.status_var.set(
+                "Installing MineHost Helper. If this is the first install, Java will be checked and downloaded now."
+            )
+            self.root.update_idletasks()
+            result = install(
                 target_dir=Path(self.install_dir_var.get()),
                 create_desktop_shortcut=self.desktop_var.get(),
                 launch_after=self.launch_var.get(),
                 clean_existing=clean_existing,
+                prepare_java=self.prepare_java_var.get(),
             )
             action = "clean installed" if clean_existing else "updated" if self.installed_dir else "installed"
-            messagebox.showinfo(APP_NAME, f"{APP_NAME} was {action}:\n\n{target}")
+            if result.java_ready or not self.prepare_java_var.get():
+                messagebox.showinfo(APP_NAME, f"{APP_NAME} was {action}:\n\n{result.app_path}\n\n{result.java_message}")
+            else:
+                messagebox.showwarning(
+                    APP_NAME,
+                    f"{APP_NAME} was {action}:\n\n{result.app_path}\n\n"
+                    f"Java still needs attention:\n{result.java_message}\n\n"
+                    "MineHost Helper can retry from the Setup Wizard.",
+                )
             self.root.destroy()
         except Exception as exc:
             messagebox.showerror(APP_NAME, f"Install failed:\n\n{exc}")
+            for button in self.install_buttons:
+                button.configure(state="normal")
 
     def run(self) -> None:
         self.root.mainloop()
@@ -566,6 +662,7 @@ def main() -> None:
             create_desktop_shortcut=not args.no_desktop,
             launch_after=not args.no_launch,
             clean_existing=args.remove_data,
+            prepare_java=True,
         )
         return
     InstallerUi().run()
