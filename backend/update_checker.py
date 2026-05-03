@@ -4,7 +4,7 @@ import json
 import urllib.request
 from typing import Any
 
-CURRENT_VERSION = "0.1.26"
+CURRENT_VERSION = "0.1.27"
 LATEST_RELEASE_URL = "https://api.github.com/repos/gosplunk/minehost-helper/releases/latest"
 
 

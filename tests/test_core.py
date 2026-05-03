@@ -373,6 +373,26 @@ def test_manual_browse_existing_server_folder_returns_candidate(tmp_path: Path, 
     assert candidate["port"] == 25572
 
 
+def test_manual_path_existing_server_folder_returns_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend import main
+    from backend.models import ServerDiscoveryPathRequest
+
+    write_properties(tmp_path, {"server-port": 25573}, make_backup=False)
+    (tmp_path / "paper-server.jar").write_text("fake jar", encoding="utf-8")
+
+    class FakeServerManager:
+        def list_servers(self) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(main, "server_manager", FakeServerManager())
+
+    candidate = main.manual_server_folder(ServerDiscoveryPathRequest(path=str(tmp_path)))
+
+    assert candidate["manual"] is True
+    assert candidate["jar_name"] == "paper-server.jar"
+    assert candidate["port"] == 25573
+
+
 def test_adopt_existing_server_records_external_path_and_jar(tmp_path: Path) -> None:
     from backend.models import ServerAdoptRequest
     from backend.server_manager import ServerManager

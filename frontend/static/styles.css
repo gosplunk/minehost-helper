@@ -1212,6 +1212,24 @@ code {
   margin: 6px 0 0;
 }
 
+.manual-path-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(117, 208, 90, 0.12), transparent),
+    var(--surface-2);
+}
+
+.manual-path-card .field {
+  margin: 0;
+}
+
 .empty-state {
   display: grid;
   gap: 10px;
@@ -1524,6 +1542,10 @@ ul {
   }
 
   .actions {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-path-card {
     grid-template-columns: 1fr;
   }
 

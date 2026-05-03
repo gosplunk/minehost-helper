@@ -524,6 +524,10 @@ function renderImportSetup() {
             <button onclick="chooseSetupMode('guided')">Create New Instead</button>
           </div>
           <p class="callout info">Can’t find it? Click Browse and choose the folder that contains <code>server.properties</code> and your server <code>.jar</code>. Do not choose the world folder by itself.</p>
+          <div class="manual-path-card">
+            <label class="field">${fieldLabel("Or paste the server folder path", "Open the folder in File Explorer, click the address bar, copy the path, then paste it here.")}<input id="manual-server-path" placeholder="C:\\Users\\YourName\\Desktop\\Minecraft Server"></label>
+            <button onclick="useManualServerPath()">Use This Folder</button>
+          </div>
           <div id="discovery-results" class="stack" style="margin-top:16px"></div>
         </div>
         <div class="card">
@@ -834,7 +838,7 @@ function renderDiscoveryResults() {
 async function browseExistingServerFolder() {
   const target = $("discovery-results");
   if (target) {
-    target.insertAdjacentHTML("afterbegin", `<p id="browse-folder-status" class="callout info"><span class="spinner inline" aria-hidden="true"></span> Opening Windows folder picker. It may appear behind your browser.</p>`);
+    target.insertAdjacentHTML("afterbegin", `<p id="browse-folder-status" class="callout info"><span class="spinner inline" aria-hidden="true"></span> Opening Windows folder picker. Look for a MineHost Helper folder window on your taskbar. If it does not appear, paste the folder path above.</p>`);
   }
   try {
     const candidate = await api("/api/servers/discovery/browse", { method: "POST", body: JSON.stringify({}) });
@@ -855,6 +859,42 @@ async function browseExistingServerFolder() {
     toast("Server folder selected. Click Add to MineHost to import it.");
   } catch (error) {
     $("browse-folder-status")?.remove();
+    if (target) {
+      target.insertAdjacentHTML("afterbegin", `<p class="callout danger">${escapeHtml(error.message)}</p>`);
+    }
+    toast(error.message, "error");
+  }
+}
+
+async function useManualServerPath() {
+  const input = $("manual-server-path");
+  const path = String(input?.value || "").trim();
+  const target = $("discovery-results");
+  if (!path) {
+    toast("Paste the server folder path first.", "error");
+    input?.focus();
+    return;
+  }
+  if (target) {
+    target.insertAdjacentHTML("afterbegin", `<p id="manual-folder-status" class="callout info"><span class="spinner inline" aria-hidden="true"></span> Checking that folder...</p>`);
+  }
+  try {
+    const candidate = await api("/api/servers/discovery/path", {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    });
+    $("manual-folder-status")?.remove();
+    const key = String(candidate.path || "").toLowerCase();
+    const existingIndex = state.discoveredServers.findIndex((item) => String(item.path || "").toLowerCase() === key);
+    if (existingIndex >= 0) {
+      state.discoveredServers[existingIndex] = candidate;
+    } else {
+      state.discoveredServers.unshift(candidate);
+    }
+    renderDiscoveryResults();
+    toast("Server folder checked. Click Add to MineHost to import it.");
+  } catch (error) {
+    $("manual-folder-status")?.remove();
     if (target) {
       target.insertAdjacentHTML("afterbegin", `<p class="callout danger">${escapeHtml(error.message)}</p>`);
     }

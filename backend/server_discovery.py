@@ -8,7 +8,6 @@ from typing import Any
 
 from .properties_manager import read_properties
 from .utils import sanitize_server_name
-from .utils import hidden_subprocess_kwargs
 
 SERVER_JAR_HINTS = ("server", "minecraft_server", "paper", "spigot", "fabric", "forge", "purpur", "bukkit")
 MAX_SCAN_DEPTH = 5
@@ -159,13 +158,22 @@ def browse_for_server_folder(initial_dir: str | None = None) -> Path | None:
     script = f"""
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Application]::EnableVisualStyles()
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $dialog.Description = 'Select the folder that contains server.properties and your Minecraft server .jar'
 $dialog.ShowNewFolderButton = $false
 if ('{_powershell_quote(selected_path)}') {{
   $dialog.SelectedPath = '{_powershell_quote(selected_path)}'
 }}
-$result = $dialog.ShowDialog()
+$owner = New-Object System.Windows.Forms.Form
+$owner.Text = 'MineHost Helper'
+$owner.TopMost = $true
+$owner.ShowInTaskbar = $true
+$owner.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
+$owner.Show()
+$owner.Activate()
+$result = $dialog.ShowDialog($owner)
+$owner.Dispose()
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
   Write-Output $dialog.SelectedPath
@@ -175,9 +183,8 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
         [powershell, "-NoLogo", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", script],
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=180,
         check=False,
-        **hidden_subprocess_kwargs(),
     )
     if result.returncode != 0:
         output = (result.stderr or result.stdout or "").strip()

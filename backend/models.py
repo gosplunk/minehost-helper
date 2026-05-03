@@ -70,6 +70,10 @@ class ServerAdoptRequest(BaseModel):
         return validate_ram_mb(value)
 
 
+class ServerDiscoveryPathRequest(BaseModel):
+    path: str = Field(min_length=3, max_length=1000)
+
+
 class ServerInfo(BaseModel):
     id: str
     name: str

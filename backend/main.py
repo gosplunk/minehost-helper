@@ -26,6 +26,7 @@ from .models import (
     PropertiesUpdateRequest,
     ServerAdoptRequest,
     ServerCreateRequest,
+    ServerDiscoveryPathRequest,
     VersionChangeRequest,
 )
 from .server_manager import server_manager
@@ -261,15 +262,29 @@ def browse_server_folder() -> dict[str, Any]:
         selected = browse_for_server_folder()
         if selected is None:
             return {"cancelled": True}
-        if not (selected / "server.properties").exists():
-            raise ValueError("That folder does not contain server.properties. Choose the main Minecraft server folder, not the world folder.")
-        if not find_server_jar(selected):
-            raise ValueError("That folder does not contain a Minecraft server .jar file. Choose the folder with server.properties and the server jar.")
-        candidate = server_candidate(selected)
-        existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
-        return {**candidate, "already_added": candidate["path"].lower() in existing_paths, "manual": True}
+        return _manual_discovery_candidate(selected)
     except Exception as exc:
         raise _api_error(exc)
+
+
+@app.post("/api/servers/discovery/path")
+def manual_server_folder(data: ServerDiscoveryPathRequest) -> dict[str, Any]:
+    try:
+        return _manual_discovery_candidate(Path(data.path).expanduser().resolve())
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+def _manual_discovery_candidate(selected: Path) -> dict[str, Any]:
+    if not selected.exists() or not selected.is_dir():
+        raise ValueError("That folder was not found. Choose the main Minecraft server folder.")
+    if not (selected / "server.properties").exists():
+        raise ValueError("That folder does not contain server.properties. Choose the main Minecraft server folder, not the world folder.")
+    if not find_server_jar(selected):
+        raise ValueError("That folder does not contain a Minecraft server .jar file. Choose the folder with server.properties and the server jar.")
+    candidate = server_candidate(selected)
+    existing_paths = {str(Path(server["path"]).resolve()).lower() for server in server_manager.list_servers()}
+    return {**candidate, "already_added": candidate["path"].lower() in existing_paths, "manual": True}
 
 
 @app.post("/api/servers/adopt")
