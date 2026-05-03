@@ -11,7 +11,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 APP_NAME = "MineHost Helper"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.1"
 PUBLISHER = "MineHost Helper"
 EXE_NAME = "MineHostHelper.exe"
 UNINSTALL_EXE_NAME = "Uninstall MineHost Helper.exe"
@@ -140,10 +140,49 @@ def read_installed_dir() -> Path | None:
         return None
 
 
+def read_installed_version() -> str | None:
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, "DisplayVersion")
+            return str(value)
+    except FileNotFoundError:
+        return None
+
+
+def validate_install_dir(target_dir: Path) -> Path:
+    target_dir = target_dir.expanduser().resolve()
+    if target_dir.anchor == str(target_dir):
+        raise ValueError("Choose a normal folder, not a drive root.")
+    return target_dir
+
+
+def is_safe_install_folder(target_dir: Path) -> bool:
+    if target_dir.name.lower() in {"minehosthelper", "minehost helper"}:
+        return True
+    app_exe = target_dir / EXE_NAME
+    uninstaller_exe = target_dir / UNINSTALL_EXE_NAME
+    if app_exe.exists() or uninstaller_exe.exists():
+        return True
+    return False
+
+
+def remove_install_folder_for_clean_install(target_dir: Path) -> None:
+    target_dir = validate_install_dir(target_dir)
+    if not target_dir.exists():
+        return
+    if not is_safe_install_folder(target_dir):
+        raise ValueError(f"Refusing to clean an unrecognized install folder: {target_dir}")
+    if target_dir in Path(sys.executable).resolve().parents:
+        schedule_remove_dir(target_dir)
+    else:
+        shutil.rmtree(target_dir, ignore_errors=True)
+
+
 def install(
     target_dir: Path,
     create_desktop_shortcut: bool = True,
     launch_after: bool = True,
+    clean_existing: bool = False,
 ) -> Path:
     source = payload_exe()
     uninstaller_source = payload_uninstaller()
@@ -152,12 +191,16 @@ def install(
     if not uninstaller_source.exists():
         raise FileNotFoundError(f"Uninstaller payload is missing: {uninstaller_source}")
 
-    target_dir = target_dir.expanduser().resolve()
-    if target_dir.anchor == str(target_dir):
-        raise ValueError("Choose a normal folder, not a drive root.")
-    target_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = validate_install_dir(target_dir)
 
     stop_running_app()
+    if clean_existing:
+        remove_shortcuts()
+        unregister_uninstaller()
+        remove_startup_entry()
+        remove_install_folder_for_clean_install(target_dir)
+
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     app_target = target_dir / EXE_NAME
     uninstall_target = target_dir / UNINSTALL_EXE_NAME
@@ -222,12 +265,14 @@ class InstallerUi:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME} Setup")
-        self.root.geometry("620x390")
+        self.root.geometry("660x480")
         self.root.resizable(False, False)
         self.root.configure(bg="#fffdf6")
         self.desktop_var = tk.BooleanVar(value=True)
         self.launch_var = tk.BooleanVar(value=True)
-        self.install_dir_var = tk.StringVar(value=str(read_installed_dir() or default_install_dir()))
+        self.installed_dir = read_installed_dir()
+        self.installed_version = read_installed_version()
+        self.install_dir_var = tk.StringVar(value=str(self.installed_dir or default_install_dir()))
         self._build()
 
     def _build(self) -> None:
@@ -236,24 +281,42 @@ class InstallerUi:
 
         tk.Label(
             frame,
-            text=f"Install {APP_NAME}",
+            text=f"{APP_NAME} Setup",
             font=("Segoe UI", 22, "bold"),
             bg="#fffdf6",
             fg="#243023",
         ).pack(anchor="w")
 
-        tk.Label(
-            frame,
-            text=(
+        if self.installed_dir:
+            status_text = (
+                f"{APP_NAME} is already installed.\n\n"
+                f"Installed version: {self.installed_version or 'unknown'}\n"
+                f"Installer version: {APP_VERSION}\n"
+                f"Location: {self.installed_dir}\n\n"
+                "Choose Update / Repair to keep Minecraft servers, backups, Java, and settings. "
+                "Choose Clean Install only if you want to erase local MineHost Helper data and start over."
+            )
+            status_bg = "#eef7e8"
+            status_fg = "#1f6d36"
+        else:
+            status_text = (
                 f"Choose where {APP_NAME} should live. Server files, backups, Java, and logs are stored "
                 "inside the selected folder so everything stays together."
-            ),
+            )
+            status_bg = "#fffdf6"
+            status_fg = "#687466"
+
+        tk.Label(
+            frame,
+            text=status_text,
             font=("Segoe UI", 10),
-            bg="#fffdf6",
-            fg="#687466",
-            wraplength=560,
+            bg=status_bg,
+            fg=status_fg,
+            padx=12 if self.installed_dir else 0,
+            pady=10 if self.installed_dir else 0,
+            wraplength=590,
             justify="left",
-        ).pack(anchor="w", pady=(8, 18))
+        ).pack(fill="x", pady=(8, 18))
 
         path_frame = tk.Frame(frame, bg="#fffdf6")
         path_frame.pack(fill="x", pady=(0, 12))
@@ -308,10 +371,11 @@ class InstallerUi:
         button_row = tk.Frame(frame, bg="#fffdf6")
         button_row.pack(fill="x")
 
+        primary_text = "Update / Repair" if self.installed_dir else "Install"
         tk.Button(
             button_row,
-            text="Install",
-            command=self._install_clicked,
+            text=primary_text,
+            command=lambda: self._install_clicked(clean_existing=False),
             bg="#2f8f46",
             fg="#ffffff",
             activebackground="#1f6d36",
@@ -321,6 +385,21 @@ class InstallerUi:
             pady=10,
             font=("Segoe UI", 10, "bold"),
         ).pack(side="left")
+
+        if self.installed_dir:
+            tk.Button(
+                button_row,
+                text="Clean Install",
+                command=lambda: self._install_clicked(clean_existing=True),
+                bg="#bb3b33",
+                fg="#ffffff",
+                activebackground="#9d2d26",
+                activeforeground="#ffffff",
+                relief="flat",
+                padx=22,
+                pady=10,
+                font=("Segoe UI", 10, "bold"),
+            ).pack(side="left", padx=(10, 0))
 
         tk.Button(
             button_row,
@@ -342,14 +421,25 @@ class InstallerUi:
                 path = path / "MineHostHelper"
             self.install_dir_var.set(str(path))
 
-    def _install_clicked(self) -> None:
+    def _install_clicked(self, clean_existing: bool) -> None:
         try:
+            if clean_existing:
+                message = (
+                    "Clean Install will remove the existing MineHost Helper install folder before reinstalling.\n\n"
+                    "This deletes local MineHost Helper servers, backups, downloaded Java, logs, and app settings "
+                    "inside the selected folder.\n\n"
+                    "Use Update / Repair instead if you want to keep existing Minecraft worlds."
+                )
+                if not messagebox.askyesno("Clean Install", message, icon="warning"):
+                    return
             target = install(
                 target_dir=Path(self.install_dir_var.get()),
                 create_desktop_shortcut=self.desktop_var.get(),
                 launch_after=self.launch_var.get(),
+                clean_existing=clean_existing,
             )
-            messagebox.showinfo(APP_NAME, f"{APP_NAME} was installed:\n\n{target}")
+            action = "clean installed" if clean_existing else "updated" if self.installed_dir else "installed"
+            messagebox.showinfo(APP_NAME, f"{APP_NAME} was {action}:\n\n{target}")
             self.root.destroy()
         except Exception as exc:
             messagebox.showerror(APP_NAME, f"Install failed:\n\n{exc}")
@@ -467,6 +557,7 @@ def main() -> None:
             target_dir=Path(args.target_dir) if args.target_dir else default_install_dir(),
             create_desktop_shortcut=not args.no_desktop,
             launch_after=not args.no_launch,
+            clean_existing=args.remove_data,
         )
         return
     InstallerUi().run()

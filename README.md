@@ -4,7 +4,7 @@
 
 **Download the installer:** [MineHostHelperSetup.exe](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe)
 
-Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
+Double click the downloaded file, choose where to install MineHost Helper, then launch it from the Start Menu or Desktop shortcut. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds and backups, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
 
 If you are viewing a private GitHub repo, you must be signed into a GitHub account that has access to this repository before the download link will work.
 
@@ -20,7 +20,7 @@ Build or download the installer:
 dist-installer\MineHostHelperSetup.exe
 ```
 
-The setup app lets the user choose the install folder, creates shortcuts, registers an uninstaller in Windows Apps & Features, and installs `Uninstall MineHost Helper.exe` into the install folder.
+The setup app lets the user choose the install folder, creates shortcuts, registers an uninstaller in Windows Apps & Features, and installs `Uninstall MineHost Helper.exe` into the install folder. If MineHost Helper is already installed, setup offers Update / Repair or Clean Install.
 
 Unsigned EXEs/installers may trigger Windows SmartScreen. That is expected for early builds; code signing can be added later.
 

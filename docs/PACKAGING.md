@@ -29,6 +29,9 @@ dist-installer\MineHostHelperSetup.exe
 Installer behavior:
 
 - Lets the user choose the install folder.
+- Detects an existing install before copying files.
+- Offers Update / Repair to keep servers, backups, Java runtimes, logs, and app settings.
+- Offers Clean Install to remove the selected MineHost Helper install folder and start over after explicit confirmation.
 - Installs for the current Windows user without requiring Administrator permission.
 - Creates Start Menu and optional Desktop shortcuts.
 - Registers MineHost Helper in Windows Apps & Features under HKCU.
