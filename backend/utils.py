@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import socket
+import subprocess
 from pathlib import Path
 
 
@@ -51,3 +52,16 @@ def find_free_port(start: int, host: str = "127.0.0.1", limit: int = 100) -> int
             except OSError:
                 continue
     raise RuntimeError(f"No free port found from {start} to {start + limit - 1}")
+
+
+def hidden_subprocess_kwargs() -> dict[str, int | subprocess.STARTUPINFO]:
+    """Keep helper probes from flashing console windows in the packaged Windows app."""
+    if not hasattr(subprocess, "CREATE_NO_WINDOW"):
+        return {}
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = 0
+    return {
+        "creationflags": subprocess.CREATE_NO_WINDOW,
+        "startupinfo": startupinfo,
+    }

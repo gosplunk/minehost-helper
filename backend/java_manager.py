@@ -11,6 +11,7 @@ import zipfile
 from pathlib import Path
 
 from .config import JAVA_DIR, ensure_directories
+from .utils import hidden_subprocess_kwargs
 
 DEFAULT_JAVA_FEATURE_VERSION = 25
 DOWNLOAD_HEADERS = {
@@ -118,6 +119,7 @@ def java_version(java_path: Path | None = None) -> str | None:
             text=True,
             timeout=10,
             check=False,
+            **hidden_subprocess_kwargs(),
         )
         return (result.stderr or result.stdout).splitlines()[0]
     except Exception:

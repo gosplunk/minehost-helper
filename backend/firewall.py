@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
-from .utils import validate_port
+from .utils import hidden_subprocess_kwargs, validate_port
 
 
 def rule_name(port: int) -> str:
@@ -17,6 +17,7 @@ def check_firewall_rule(port: int) -> dict[str, str | bool | int]:
         capture_output=True,
         text=True,
         check=False,
+        **hidden_subprocess_kwargs(),
     )
     return {
         "port": port,
@@ -45,6 +46,7 @@ def create_firewall_rule(port: int) -> dict[str, str | bool | int]:
         capture_output=True,
         text=True,
         check=False,
+        **hidden_subprocess_kwargs(),
     )
     return {
         "port": port,
