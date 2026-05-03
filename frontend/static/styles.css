@@ -795,6 +795,15 @@ details,
   display: block;
 }
 
+.map-world-list {
+  margin-top: 12px;
+}
+
+.map-world-list code {
+  white-space: normal;
+  word-break: break-word;
+}
+
 .quick-stats {
   display: flex;
   flex-wrap: wrap;

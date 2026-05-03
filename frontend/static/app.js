@@ -1542,8 +1542,8 @@ async function renderWorldMap() {
         </div>
         <div class="dimension-tabs">
           ${(data.dimensions || []).map((item) => `
-            <button class="${item.id === data.dimension ? "primary" : ""}" onclick="selectMapDimension('${escapeHtml(item.id)}')" ${item.available ? "" : "disabled"}>
-              ${escapeHtml(item.label)}${item.available ? "" : " (not found)"}
+            <button class="${item.id === data.dimension ? "primary" : ""}" onclick="selectMapDimension('${escapeHtml(item.id)}')">
+              ${escapeHtml(item.label)}${item.region_files_found ? ` (${item.region_files_found})` : " (none)"}
             </button>
           `).join("")}
         </div>
@@ -1561,8 +1561,19 @@ async function renderWorldMap() {
           <div class="list-item"><strong>Explored chunks</strong><span>${data.chunk_count}</span></div>
           <div class="list-item"><strong>Region files found</strong><span>${data.region_files_found || 0}</span></div>
           <div class="list-item"><strong>Region files with chunks</strong><span>${data.region_count}</span></div>
+          <div class="list-item"><strong>Skipped files</strong><span>${(data.unreadable_files || 0) + (data.invalid_files || 0)}</span></div>
           <div class="list-item"><strong>Server status</strong><span>${escapeHtml(data.server_status || server.status)}</span></div>
         </div>
+        <details class="advanced" open>
+          <summary>Detected world folders</summary>
+          <div class="table-list map-world-list">
+            ${(data.worlds || []).length ? data.worlds.map((world) => `
+              <div class="list-item">
+                <strong>${escapeHtml(world.world_name)} · ${escapeHtml(world.label)}</strong>
+                <span>${world.region_files_found} region files<br><code>${escapeHtml(world.relative_region_path)}</code></span>
+              </div>`).join("") : `<div class="list-item"><strong>No region folders found</strong><span>Start the server once and refresh after spawn finishes generating.</span></div>`}
+          </div>
+        </details>
         <details class="advanced">
           <summary>Map file path</summary>
           <p class="muted"><code>${escapeHtml(data.region_path || "")}</code></p>
@@ -1615,7 +1626,7 @@ function drawWorldMap(data) {
   const padding = 44;
   const spanX = Math.max(1, maxX - minX + 1);
   const spanZ = Math.max(1, maxZ - minZ + 1);
-  const cell = Math.max(2, Math.min((cssWidth - padding * 2) / spanX, (cssHeight - padding * 2) / spanZ));
+  const cell = Math.min(16, Math.max(0.08, Math.min((cssWidth - padding * 2) / spanX, (cssHeight - padding * 2) / spanZ)));
   const mapWidth = spanX * cell;
   const mapHeight = spanZ * cell;
   const startX = (cssWidth - mapWidth) / 2;
@@ -1624,7 +1635,8 @@ function drawWorldMap(data) {
   for (const chunk of chunks) {
     const x = startX + (chunk.x - minX) * cell;
     const y = startY + (chunk.z - minZ) * cell;
-    context.fillRect(x, y, Math.max(1, cell - 0.35), Math.max(1, cell - 0.35));
+    const size = cell >= 1 ? Math.max(1, cell - 0.25) : Math.max(0.6, cell);
+    context.fillRect(x, y, size, size);
   }
   drawAxis(context, startX, startY, cell, minX, minZ, spanX, spanZ, cssWidth, cssHeight);
 }

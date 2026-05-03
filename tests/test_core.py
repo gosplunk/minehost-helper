@@ -438,6 +438,41 @@ def test_world_map_finds_imported_world_when_level_name_is_wrong(tmp_path: Path)
     assert data["chunk_count"] == 1
 
 
+def test_world_map_discovers_vanilla_nether_dimension(tmp_path: Path) -> None:
+    from backend.world_map import scan_dimension
+
+    write_properties(tmp_path, {"level-name": "FamilyWorld"}, make_backup=False)
+    region_dir = tmp_path / "FamilyWorld" / "DIM-1" / "region"
+    region_dir.mkdir(parents=True)
+    header = bytearray(4096)
+    header[0:4] = b"\x00\x00\x02\x01"
+    (region_dir / "r.-1.2.mca").write_bytes(bytes(header) + b"\x00" * 4096)
+
+    data = scan_dimension(tmp_path, "nether")
+
+    assert data["available"] is True
+    assert data["world_name"] == "FamilyWorld"
+    assert {"x": -32, "z": 64} in data["chunks"]
+    assert any(item["id"] == "nether" and item["available"] for item in data["dimensions"])
+
+
+def test_world_map_discovers_separate_nether_world_folder(tmp_path: Path) -> None:
+    from backend.world_map import scan_dimension
+
+    write_properties(tmp_path, {"level-name": "world"}, make_backup=False)
+    region_dir = tmp_path / "world_nether" / "region"
+    region_dir.mkdir(parents=True)
+    header = bytearray(4096)
+    header[4:8] = b"\x00\x00\x02\x01"
+    (region_dir / "r.0.0.mca").write_bytes(bytes(header) + b"\x00" * 4096)
+
+    data = scan_dimension(tmp_path, "nether")
+
+    assert data["available"] is True
+    assert data["world_name"] == "world_nether"
+    assert {"x": 1, "z": 0} in data["chunks"]
+
+
 def test_diagnostics_explains_common_errors() -> None:
     from backend.diagnostics import explain_lines
 
