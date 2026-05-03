@@ -9,11 +9,24 @@ MineHost Helper is an unsigned, self-contained Windows app during early testing.
 
 Do not tell non-technical users to disable Defender. Treat this as a release trust problem that must be fixed by packaging, signing, and Microsoft review.
 
+## Recommended Temporary Path
+
+Use `MineHostHelper-Portable.zip` instead of the installer. The portable ZIP contains source files and batch/PowerShell launchers, not a custom MineHost Helper executable. This avoids the PyInstaller bootloader that Defender is flagging.
+
+Steps:
+
+1. Download `MineHostHelper-Portable.zip` from the latest GitHub release.
+2. Unzip it into a normal writable folder, such as `C:\MineHostHelper`.
+3. Double click `Start MineHost Helper.bat`.
+4. If Python is missing, the launcher can ask to install Python with `winget`.
+
+This is not as polished as an installer, but it is safer than asking users to bypass antivirus.
+
 ## Why It Happens
 
 Early MineHost Helper builds are produced with PyInstaller. PyInstaller creates self-extracting executables that bundle Python, app code, and assets. Unsigned self-extracting binaries with low download reputation are common false-positive targets.
 
-Starting with `v0.1.21`, MineHost Helper disables UPX compression in PyInstaller specs because compressed executables are more likely to look suspicious to antivirus engines.
+Starting with `v0.1.21`, MineHost Helper disables UPX compression in PyInstaller specs because compressed executables are more likely to look suspicious to antivirus engines. Starting with `v0.1.22`, the primary release asset is a portable ZIP to avoid the PyInstaller installer path entirely.
 
 ## Immediate Response For A Flagged Release
 

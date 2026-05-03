@@ -4,7 +4,7 @@ import json
 import urllib.request
 from typing import Any
 
-CURRENT_VERSION = "0.1.21"
+CURRENT_VERSION = "0.1.22"
 LATEST_RELEASE_URL = "https://api.github.com/repos/gosplunk/minehost-helper/releases/latest"
 
 
@@ -27,11 +27,20 @@ def check_for_updates() -> dict[str, Any]:
     with urllib.request.urlopen(request, timeout=8) as response:
         data = json.loads(response.read().decode("utf-8"))
     latest = data.get("tag_name") or CURRENT_VERSION
+    assets = data.get("assets") or []
+    download_url = "https://github.com/gosplunk/minehost-helper/releases/latest"
+    for preferred_name in ("MineHostHelper-Portable.zip", "MineHostHelperSetup.exe"):
+        for asset in assets:
+            if asset.get("name") == preferred_name and asset.get("browser_download_url"):
+                download_url = asset["browser_download_url"]
+                break
+        if download_url != "https://github.com/gosplunk/minehost-helper/releases/latest":
+            break
     return {
         "current_version": CURRENT_VERSION,
         "latest_version": latest,
         "update_available": _version_tuple(latest) > _version_tuple(CURRENT_VERSION),
         "release_url": data.get("html_url"),
-        "download_url": "https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe",
+        "download_url": download_url,
         "notes": data.get("body") or "",
     }

@@ -3,10 +3,23 @@
 MineHost Helper currently has three distribution paths:
 
 - Source/portable folder for development.
+- Portable ZIP for unsigned public testing.
 - Standalone PyInstaller EXE for direct testing.
 - Bootstrap setup EXE for friends and non-technical users.
 
-For friends, use the setup EXE:
+For unsigned public testing, use the portable ZIP:
+
+```text
+dist-portable\MineHostHelper-Portable.zip
+```
+
+Build:
+
+```powershell
+.\scripts\build-portable-zip.ps1
+```
+
+For signed releases later, use the setup EXE:
 
 ```text
 dist-installer\MineHostHelperSetup.exe

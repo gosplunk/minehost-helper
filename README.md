@@ -2,15 +2,19 @@
 
 ## Download For Windows
 
-**Download the installer:** [MineHostHelperSetup.exe](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe)
+**Recommended right now:** [MineHostHelper-Portable.zip](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelper-Portable.zip)
+
+The portable ZIP contains no MineHost Helper `.exe`, which avoids the PyInstaller installer path that Windows Defender may flag on some PCs. Unzip it, then double click `Start MineHost Helper.bat`.
+
+The unsigned installer is paused as the recommended path until releases are signed or cleared by Microsoft.
 
 **License:** MineHost Helper is free to install and use, but it is **not open source**. The source is public for transparency. Modified versions, redistributed forks, rebranded builds, and resale are not allowed. See [LICENSE.md](LICENSE.md).
 
-Double click the downloaded file, choose where to install MineHost Helper, create a local web login, then launch it from the Start Menu or Desktop shortcut. Setup checks for Java 25+ when it opens. If a compatible bundled or system Java is already available, setup skips the Java download option; otherwise it prepares the bundled Eclipse Temurin Java runtime during install by default so first server launch is less surprising. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds, backups, settings, and the existing web login, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
+With the portable ZIP, first launch creates a local Python environment, installs MineHost Helper dependencies, creates a local web login, and opens the browser UI. It still checks for Java 25+ and can prepare the bundled Eclipse Temurin Java runtime when Java is missing.
 
 If Windows Defender blocks a release with `WinError 225`, do not disable Defender. See [Windows Defender And SmartScreen](docs/WINDOWS_DEFENDER.md). The fix is to submit the exact flagged file to Microsoft for false-positive review and sign future releases.
 
-If the download link does not work, open the Releases page and download the newest `MineHostHelperSetup.exe` asset.
+If the download link does not work, open the Releases page and download the newest `MineHostHelper-Portable.zip` asset.
 
 MineHost Helper is a Windows-first local web app for running a Minecraft Java server without command-line work after installation. It installs or downloads what it needs, opens a browser UI automatically, creates servers, writes `server.properties`, starts and stops Minecraft, shows logs, creates backups, and guides users through Windows Firewall and router forwarding.
 
@@ -45,7 +49,19 @@ The manager UI binds to `127.0.0.1` by default so only this PC can control it. D
 
 ## Recommended Install For Friends
 
-Build or download the installer:
+Until releases are code-signed, use the portable ZIP for friends:
+
+```text
+dist-portable\MineHostHelper-Portable.zip
+```
+
+Unzip it into a normal writable folder, then double click:
+
+```text
+Start MineHost Helper.bat
+```
+
+The older installer path remains available for testing, but it is more likely to trigger Defender until releases are signed and cleared by Microsoft:
 
 ```text
 dist-installer\MineHostHelperSetup.exe
@@ -53,7 +69,7 @@ dist-installer\MineHostHelperSetup.exe
 
 The setup app lets the user choose the install folder, create the local web UI username/password, creates shortcuts, registers an uninstaller in Windows Apps & Features, and installs `Uninstall MineHost Helper.exe` into the install folder. If MineHost Helper is already installed, setup offers Update / Repair or Clean Install. Update / Repair detects the existing web login and keeps the same username/password hash by default.
 
-Unsigned EXEs/installers may trigger Windows SmartScreen or Defender false positives. That is expected for early builds; public-friendly releases should be Authenticode signed. Starting with `v0.1.21`, PyInstaller UPX compression is disabled to reduce false positives.
+Unsigned EXEs/installers may trigger Windows SmartScreen or Defender false positives. That is expected for early builds; public-friendly releases should be Authenticode signed. Starting with `v0.1.22`, the recommended download is a portable ZIP with no MineHost Helper EXE.
 
 ## Run From Source
 
