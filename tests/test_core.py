@@ -174,6 +174,31 @@ def test_minecraft_bind_failure_sets_actionable_error() -> None:
     assert manager._operations["family"]["active"] is False
 
 
+def test_admin_command_builds_safe_minecraft_commands() -> None:
+    from backend.server_manager import ServerManager
+
+    sent: list[str] = []
+    manager = ServerManager.__new__(ServerManager)
+    manager.send_command = lambda server_id, command: sent.append(command)
+
+    result = manager.admin_command("family", {"action": "teleport-to-player", "player": "Steve_1", "target": "Alex_2"})
+    assert result["command"] == "tp Steve_1 Alex_2"
+    assert sent[-1] == "tp Steve_1 Alex_2"
+
+    result = manager.admin_command("family", {"action": "weather-clear"})
+    assert result["command"] == "weather clear"
+
+
+def test_admin_command_rejects_unsafe_player_names() -> None:
+    from backend.server_manager import ServerManager
+
+    manager = ServerManager.__new__(ServerManager)
+    manager.send_command = lambda server_id, command: None
+
+    with pytest.raises(ValueError, match="Minecraft username"):
+        manager.admin_command("family", {"action": "ban", "player": "@a"})
+
+
 def test_port_check_returns_resolution_for_conflict(tmp_path: Path) -> None:
     from backend.server_manager import ServerManager
 

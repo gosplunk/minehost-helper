@@ -520,6 +520,71 @@ class ServerManager:
         managed.process.stdin.write(command.strip() + "\n")
         managed.process.stdin.flush()
 
+    def _clean_player_name(self, value: str | None, label: str = "Player") -> str:
+        cleaned = (value or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", cleaned):
+            raise ValueError(f"{label} must be a Minecraft username with 3 to 16 letters, numbers, or underscores")
+        return cleaned
+
+    def _clean_command_text(self, value: str | None, label: str, max_length: int) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            raise ValueError(f"{label} is required")
+        cleaned = re.sub(r"[\r\n]+", " ", cleaned).strip()
+        if len(cleaned) > max_length:
+            raise ValueError(f"{label} is too long")
+        return cleaned
+
+    def admin_command(self, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        action = str(data.get("action") or "").strip()
+        commands = {
+            "time-day": "time set day",
+            "time-noon": "time set noon",
+            "time-night": "time set night",
+            "time-midnight": "time set midnight",
+            "weather-clear": "weather clear",
+            "weather-rain": "weather rain",
+            "weather-thunder": "weather thunder",
+            "save-all": "save-all",
+            "list-players": "list",
+            "whitelist-reload": "whitelist reload",
+            "keep-inventory-on": "gamerule keepInventory true",
+            "keep-inventory-off": "gamerule keepInventory false",
+            "daylight-cycle-on": "gamerule doDaylightCycle true",
+            "daylight-cycle-off": "gamerule doDaylightCycle false",
+            "weather-cycle-on": "gamerule doWeatherCycle true",
+            "weather-cycle-off": "gamerule doWeatherCycle false",
+        }
+        if action in commands:
+            command = commands[action]
+        elif action == "kick":
+            player = self._clean_player_name(data.get("player"))
+            reason = (data.get("reason") or "").strip()
+            command = f"kick {player} {self._clean_command_text(reason, 'Reason', 120)}" if reason else f"kick {player}"
+        elif action == "ban":
+            player = self._clean_player_name(data.get("player"))
+            reason = (data.get("reason") or "").strip()
+            command = f"ban {player} {self._clean_command_text(reason, 'Reason', 120)}" if reason else f"ban {player}"
+        elif action == "pardon":
+            command = f"pardon {self._clean_player_name(data.get('player'))}"
+        elif action == "teleport-to-player":
+            player = self._clean_player_name(data.get("player"))
+            target = self._clean_player_name(data.get("target"), "Destination player")
+            command = f"tp {player} {target}"
+        elif action == "op":
+            command = f"op {self._clean_player_name(data.get('player'))}"
+        elif action == "deop":
+            command = f"deop {self._clean_player_name(data.get('player'))}"
+        elif action == "whitelist-add":
+            command = f"whitelist add {self._clean_player_name(data.get('player'))}"
+        elif action == "announce":
+            message = self._clean_command_text(data.get("message"), "Announcement", 200)
+            command = f"say {message}"
+        else:
+            raise ValueError("Unsupported admin command")
+        self.send_command(server_id, command)
+        return {"ok": True, "command": command}
+
     def player_action(self, server_id: str, action: str, player: str, reason: str | None = None) -> None:
         commands = {
             "op": f"op {player}",
@@ -533,6 +598,32 @@ class ServerManager:
         if action not in commands:
             raise ValueError("Unsupported player action")
         self.send_command(server_id, commands[action])
+
+    def resource_snapshot(self, server_id: str) -> dict[str, Any]:
+        process = self.process_info(server_id)
+        disk = self.server_disk_usage(server_id)
+        system: dict[str, Any] = {"available": False}
+        if psutil:
+            try:
+                memory = psutil.virtual_memory()
+                disk_usage = psutil.disk_usage(str(self._server_dir(server_id).anchor or self._server_dir(server_id)))
+                system = {
+                    "available": True,
+                    "cpu_percent": psutil.cpu_percent(interval=0.0),
+                    "memory_total_mb": round(memory.total / (1024 * 1024), 1),
+                    "memory_used_mb": round(memory.used / (1024 * 1024), 1),
+                    "memory_percent": memory.percent,
+                    "disk_total_gb": round(disk_usage.total / (1024 * 1024 * 1024), 1),
+                    "disk_free_gb": round(disk_usage.free / (1024 * 1024 * 1024), 1),
+                    "disk_percent": disk_usage.percent,
+                }
+            except Exception:
+                system = {"available": False}
+        return {
+            "process": process,
+            "server_disk": disk,
+            "system": system,
+        }
 
     def player_lists(self, server_id: str) -> dict[str, Any]:
         server_dir = self._server_dir(server_id)

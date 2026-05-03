@@ -87,6 +87,14 @@ class CommandRequest(BaseModel):
     command: str = Field(min_length=1, max_length=500)
 
 
+class AdminCommandRequest(BaseModel):
+    action: str = Field(min_length=1, max_length=80)
+    player: str | None = Field(default=None, max_length=32)
+    target: str | None = Field(default=None, max_length=32)
+    reason: str | None = Field(default=None, max_length=160)
+    message: str | None = Field(default=None, max_length=240)
+
+
 class PropertiesUpdateRequest(BaseModel):
     properties: dict[str, Any]
 

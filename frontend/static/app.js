@@ -31,6 +31,7 @@ const state = {
 
 const titles = {
   dashboard: "Dashboard",
+  "command-center": "Command Center",
   setup: "Get Started",
   settings: "Server Settings",
   players: "Players",
@@ -1088,6 +1089,175 @@ function clearConsole() {
   $("console-lines").textContent = "";
 }
 
+function resourceMeter(label, value, detail) {
+  const percent = Math.max(0, Math.min(100, Number(value) || 0));
+  return `
+    <div class="resource-meter">
+      <div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(detail)}</span></div>
+      <div class="meter-track"><div class="meter-fill" style="width:${percent}%"></div></div>
+    </div>`;
+}
+
+function commandButton(label, action, extra = {}) {
+  const payload = encodeURIComponent(JSON.stringify({ action, ...extra }));
+  return `<button type="button" onclick="runAdminCommand('${payload}')">${escapeHtml(label)}</button>`;
+}
+
+async function renderCommandCenter() {
+  const server = selectedServer();
+  if (!server) {
+    $("command-center").innerHTML = noServerCard();
+    return;
+  }
+  const data = await api(`/api/servers/${server.id}/command-center`);
+  const resources = data.resources || {};
+  const process = resources.process || {};
+  const system = resources.system || {};
+  const players = data.players || {};
+  const onlinePlayers = players.online || [];
+  const playerOptions = onlinePlayers.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  const running = data.server?.status === "running";
+  $("command-center").innerHTML = `
+    <div class="command-hero card">
+      <div>
+        <p class="eyebrow">Admin command center</p>
+        <h2>Fast controls for ${escapeHtml(data.server?.name || server.name)}</h2>
+        <p class="muted">Use these buttons for common admin tasks without typing console commands. The Minecraft server must be running.</p>
+      </div>
+      <div class="actions">
+        ${statusPill(data.server?.status)}
+        <button class="primary" onclick="serverAction('start')" ${running ? "disabled" : ""}>Start Server</button>
+        <button onclick="serverAction('stop')" ${running ? "" : "disabled"}>Stop Server</button>
+      </div>
+    </div>
+    <div class="command-grid">
+      <div class="card">
+        <h2>Time</h2>
+        <p class="muted">Change the world time for everyone.</p>
+        <div class="quick-button-grid">
+          ${commandButton("Day", "time-day")}
+          ${commandButton("Noon", "time-noon")}
+          ${commandButton("Night", "time-night")}
+          ${commandButton("Midnight", "time-midnight")}
+        </div>
+      </div>
+      <div class="card">
+        <h2>Weather</h2>
+        <p class="muted">Set the current world weather.</p>
+        <div class="quick-button-grid">
+          ${commandButton("Clear", "weather-clear")}
+          ${commandButton("Rain", "weather-rain")}
+          ${commandButton("Thunder", "weather-thunder")}
+        </div>
+      </div>
+      <div class="card">
+        <h2>Player action</h2>
+        <p class="muted">Kick, ban, whitelist, or change admin status for one player.</p>
+        <div class="form-grid">
+          <label class="field">Player name<input id="admin-player" list="online-player-list" placeholder="Steve"></label>
+          <label class="field">Reason, optional<input id="admin-reason" placeholder="Be kind"></label>
+        </div>
+        <datalist id="online-player-list">${playerOptions}</datalist>
+        <div class="actions" style="margin-top:16px">
+          <button onclick="runPlayerAdminCommand('kick')">Kick</button>
+          <button class="danger" onclick="runPlayerAdminCommand('ban')">Ban</button>
+          <button onclick="runPlayerAdminCommand('pardon')">Unban</button>
+          <button onclick="runPlayerAdminCommand('whitelist-add')">Whitelist</button>
+          <button onclick="runPlayerAdminCommand('op')">Make OP</button>
+          <button onclick="runPlayerAdminCommand('deop')">Remove OP</button>
+        </div>
+        <p class="callout warning">Only give OP to people you trust. OP players can run powerful commands.</p>
+      </div>
+      <div class="card">
+        <h2>Teleport</h2>
+        <p class="muted">Move one online player to another player.</p>
+        <div class="form-grid">
+          <label class="field">Move player<input id="teleport-player" list="online-player-list" placeholder="Player to move"></label>
+          <label class="field">To player<input id="teleport-target" list="online-player-list" placeholder="Destination player"></label>
+        </div>
+        <button class="primary" style="margin-top:16px" onclick="teleportPlayer()">Teleport Player</button>
+      </div>
+      <div class="card">
+        <h2>Useful commands</h2>
+        <p class="muted">Common admin utilities that are safer as buttons.</p>
+        <div class="quick-button-grid">
+          ${commandButton("Save World", "save-all")}
+          ${commandButton("List Players", "list-players")}
+          ${commandButton("Reload Whitelist", "whitelist-reload")}
+          ${commandButton("Keep Inventory On", "keep-inventory-on")}
+          ${commandButton("Keep Inventory Off", "keep-inventory-off")}
+          ${commandButton("Daylight Cycle On", "daylight-cycle-on")}
+          ${commandButton("Daylight Cycle Off", "daylight-cycle-off")}
+          ${commandButton("Weather Cycle On", "weather-cycle-on")}
+          ${commandButton("Weather Cycle Off", "weather-cycle-off")}
+        </div>
+      </div>
+      <form id="announcement-form" class="card">
+        <h2>Announcement</h2>
+        <p class="muted">Send a visible server message to everyone online.</p>
+        <label class="field">Message<input id="announcement-message" maxlength="200" placeholder="Server restarting in 5 minutes"></label>
+        <button class="primary" style="margin-top:16px" type="submit">Send Announcement</button>
+      </form>
+      <div class="card">
+        <h2>Resources</h2>
+        <p class="muted">Quick health snapshot for this PC and Minecraft process.</p>
+        <div class="resource-stack">
+          ${system.available ? resourceMeter("PC CPU", system.cpu_percent, `${system.cpu_percent}% used`) : `<p class="muted">PC resource details are unavailable.</p>`}
+          ${system.available ? resourceMeter("PC Memory", system.memory_percent, `${formatBytes((system.memory_used_mb || 0) * 1024 * 1024)} / ${formatBytes((system.memory_total_mb || 0) * 1024 * 1024)}`) : ""}
+          ${system.available ? resourceMeter("Disk", system.disk_percent, `${system.disk_free_gb} GB free`) : ""}
+          ${process.running ? resourceMeter("Minecraft RAM", Math.min(100, ((process.memory_mb || 0) / (data.server?.ram_mb || 4096)) * 100), `${process.memory_mb || 0} MB / ${data.server?.ram_mb || 4096} MB`) : `<p class="callout info">Minecraft is not running, so process CPU/RAM is unavailable.</p>`}
+          <div class="list-item"><strong>Server folder</strong><span>${formatBytes(resources.server_disk?.bytes || 0)} · ${resources.server_disk?.files || 0} files</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Online players</h2>
+        <p class="muted">${onlinePlayers.length ? onlinePlayers.map(escapeHtml).join(", ") : "No online players detected yet. The server must log joins/leaves for this list."}</p>
+        <pre class="console mini-console">${(data.recent_console || []).map(escapeHtml).join("\n") || "No recent console output."}</pre>
+      </div>
+    </div>`;
+  $("announcement-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = $("announcement-message").value.trim();
+    if (!message) {
+      toast("Enter an announcement first.", "error");
+      return;
+    }
+    await runAdminCommand(encodeURIComponent(JSON.stringify({ action: "announce", message })));
+    $("announcement-message").value = "";
+  });
+}
+
+async function runAdminCommand(encodedPayload) {
+  const server = selectedServer();
+  const payload = JSON.parse(decodeURIComponent(encodedPayload));
+  await runAction("Admin command sent", async () => {
+    await api(`/api/servers/${server.id}/admin-command`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  });
+}
+
+async function runPlayerAdminCommand(action) {
+  const player = $("admin-player").value.trim();
+  const reason = $("admin-reason").value.trim();
+  if (!player) {
+    toast("Enter a player name first.", "error");
+    return;
+  }
+  await runAdminCommand(encodeURIComponent(JSON.stringify({ action, player, reason })));
+}
+
+async function teleportPlayer() {
+  const player = $("teleport-player").value.trim();
+  const target = $("teleport-target").value.trim();
+  if (!player || !target) {
+    toast("Enter both player names first.", "error");
+    return;
+  }
+  await runAdminCommand(encodeURIComponent(JSON.stringify({ action: "teleport-to-player", player, target })));
+}
+
 async function renderBackups() {
   const server = selectedServer();
   if (!server) {
@@ -1528,6 +1698,7 @@ async function render() {
       renderDashboard();
       startDashboardPolling();
     }
+    if (state.page === "command-center") await renderCommandCenter();
     if (state.page === "setup") renderSetup();
     if (state.page === "settings") await renderSettings();
     if (state.page === "console") renderConsole();

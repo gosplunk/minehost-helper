@@ -13,6 +13,7 @@ from . import app_settings, auth_manager, backup_scheduler, discord_webhook, fir
 from .server_discovery import scan_existing_servers
 from .config import APP_NAME, HOST, PORT, STATIC_DIR, ensure_directories
 from .models import (
+    AdminCommandRequest,
     AuthRequest,
     AuthSetupRequest,
     CommandRequest,
@@ -367,6 +368,27 @@ def send_command(server_id: str, data: CommandRequest) -> dict[str, bool]:
     try:
         server_manager.send_command(server_id, data.command)
         return {"ok": True}
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.get("/api/servers/{server_id}/command-center")
+def command_center(server_id: str) -> dict[str, Any]:
+    try:
+        return {
+            "server": server_manager.get_server(server_id),
+            "players": server_manager.player_lists(server_id),
+            "resources": server_manager.resource_snapshot(server_id),
+            "recent_console": server_manager.console_lines(server_id, 12),
+        }
+    except Exception as exc:
+        raise _api_error(exc)
+
+
+@app.post("/api/servers/{server_id}/admin-command")
+def admin_command(server_id: str, data: AdminCommandRequest) -> dict[str, Any]:
+    try:
+        return server_manager.admin_command(server_id, data.model_dump(exclude_none=True))
     except Exception as exc:
         raise _api_error(exc)
 

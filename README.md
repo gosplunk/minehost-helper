@@ -23,11 +23,15 @@ The manager UI binds to `127.0.0.1` by default so only this PC can control it. D
   </tr>
   <tr>
     <td><strong>Dashboard</strong><br><img src="docs/screenshots/03-dashboard.png" alt="MineHost Helper dashboard" width="420"></td>
-    <td><strong>Server Settings</strong><br><img src="docs/screenshots/04-server-settings.png" alt="MineHost Helper server settings" width="420"></td>
+    <td><strong>Command Center</strong><br><img src="docs/screenshots/07-command-center.png" alt="MineHost Helper command center" width="420"></td>
   </tr>
   <tr>
+    <td><strong>Server Settings</strong><br><img src="docs/screenshots/04-server-settings.png" alt="MineHost Helper server settings" width="420"></td>
     <td><strong>Networking</strong><br><img src="docs/screenshots/05-networking.png" alt="MineHost Helper networking wizard" width="420"></td>
+  </tr>
+  <tr>
     <td><strong>Discord Setup</strong><br><img src="docs/screenshots/06-help-discord.png" alt="MineHost Helper Discord webhook setup" width="420"></td>
+    <td></td>
   </tr>
 </table>
 
@@ -111,6 +115,12 @@ Use the Dashboard buttons:
 - Emergency Kill is only for stuck servers.
 
 MineHost Helper checks whether the configured Minecraft port is already in use before starting and explains the resolution instead of failing later in the Minecraft console.
+
+## Command Center
+
+The Command Center is the fast admin page for common Minecraft server actions. It provides buttons for time, weather, save world, whitelist reload, keep inventory, daylight/weather cycles, announcements, kick/ban/unban, OP/de-OP, and teleporting one player to another. It also shows a quick resource snapshot for PC CPU, memory, disk, Minecraft RAM, server folder size, online players, and recent console output.
+
+Command Center buttons use structured backend command builders instead of running arbitrary shell commands. For advanced Minecraft commands, use the Console page.
 
 ## Settings And Tray Agent
 
