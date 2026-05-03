@@ -14,6 +14,23 @@ On first launch, the web app opens to a clean Get Started page with three choice
 
 The manager UI binds to `127.0.0.1` by default so only this PC can control it. Do not expose the manager UI to the internet.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><strong>Local web login</strong><br><img src="docs/screenshots/01-login.png" alt="MineHost Helper local web login" width="420"></td>
+    <td><strong>Get Started</strong><br><img src="docs/screenshots/02-get-started.png" alt="MineHost Helper Get Started choices" width="420"></td>
+  </tr>
+  <tr>
+    <td><strong>Dashboard</strong><br><img src="docs/screenshots/03-dashboard.png" alt="MineHost Helper dashboard" width="420"></td>
+    <td><strong>Server Settings</strong><br><img src="docs/screenshots/04-server-settings.png" alt="MineHost Helper server settings" width="420"></td>
+  </tr>
+  <tr>
+    <td><strong>Networking</strong><br><img src="docs/screenshots/05-networking.png" alt="MineHost Helper networking wizard" width="420"></td>
+    <td><strong>Discord Setup</strong><br><img src="docs/screenshots/06-help-discord.png" alt="MineHost Helper Discord webhook setup" width="420"></td>
+  </tr>
+</table>
+
 ## Recommended Install For Friends
 
 Build or download the installer:
