@@ -4,9 +4,11 @@
 
 **Download the installer:** [MineHostHelperSetup.exe](https://github.com/gosplunk/minehost-helper/releases/latest/download/MineHostHelperSetup.exe)
 
+**License:** MineHost Helper is free to install and use, but it is **not open source**. The source is public for transparency. Modified versions, redistributed forks, rebranded builds, and resale are not allowed. See [LICENSE.md](LICENSE.md).
+
 Double click the downloaded file, choose where to install MineHost Helper, create a local web login, then launch it from the Start Menu or Desktop shortcut. Setup checks for Java 25+ when it opens. If a compatible bundled or system Java is already available, setup skips the Java download option; otherwise it prepares the bundled Eclipse Temurin Java runtime during install by default so first server launch is less surprising. If MineHost Helper is already installed, setup asks whether to Update / Repair while keeping worlds, backups, settings, and the existing web login, or do a Clean Install that starts over. Windows may show a SmartScreen warning because this early build is unsigned; only run it if you trust the source.
 
-If you are viewing a private GitHub repo, you must be signed into a GitHub account that has access to this repository before the download link will work.
+If the download link does not work, open the Releases page and download the newest `MineHostHelperSetup.exe` asset.
 
 MineHost Helper is a Windows-first local web app for running a Minecraft Java server without command-line work after installation. It installs or downloads what it needs, opens a browser UI automatically, creates servers, writes `server.properties`, starts and stops Minecraft, shows logs, creates backups, and guides users through Windows Firewall and router forwarding.
 
@@ -23,15 +25,19 @@ The manager UI binds to `127.0.0.1` by default so only this PC can control it. D
   </tr>
   <tr>
     <td><strong>Dashboard</strong><br><img src="docs/screenshots/03-dashboard.png" alt="MineHost Helper dashboard" width="420"></td>
+    <td><strong>Quick Controls</strong><br><img src="docs/screenshots/09-quick-controls.png" alt="MineHost Helper anchored quick controls drawer" width="420"></td>
+  </tr>
+  <tr>
     <td><strong>Command Center</strong><br><img src="docs/screenshots/07-command-center.png" alt="MineHost Helper command center" width="420"></td>
-  </tr>
-  <tr>
     <td><strong>Server Settings</strong><br><img src="docs/screenshots/04-server-settings.png" alt="MineHost Helper server settings" width="420"></td>
-    <td><strong>World Map</strong><br><img src="docs/screenshots/08-world-map.png" alt="MineHost Helper vanilla explored world map" width="420"></td>
   </tr>
   <tr>
+    <td><strong>World Map</strong><br><img src="docs/screenshots/08-world-map.png" alt="MineHost Helper vanilla explored world map" width="420"></td>
     <td><strong>Networking</strong><br><img src="docs/screenshots/05-networking.png" alt="MineHost Helper networking wizard" width="420"></td>
+  </tr>
+  <tr>
     <td><strong>Discord Setup</strong><br><img src="docs/screenshots/06-help-discord.png" alt="MineHost Helper Discord webhook setup" width="420"></td>
+    <td></td>
   </tr>
 </table>
 
