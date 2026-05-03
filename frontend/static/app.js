@@ -88,6 +88,10 @@ function statusPill(status) {
   return `<span class="pill ${status || "stopped"}">${status || "stopped"}</span>`;
 }
 
+function quickStat(label, value) {
+  return `<div class="quick-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -220,7 +224,11 @@ function renderDashboard() {
       <div>
         <p class="eyebrow">${server.name}</p>
         <h2>${statusPill(server.status)} Minecraft ${server.version}</h2>
-        <p class="muted">RAM ${server.ram_mb} MB · Port ${server.port} · ${process.uptime_seconds ? `Uptime ${Math.floor(process.uptime_seconds / 60)} min` : "Not running"}</p>
+        <div class="quick-stats">
+          ${quickStat("RAM", `${server.ram_mb} MB`)}
+          ${quickStat("Port", server.port)}
+          ${quickStat("Uptime", process.uptime_seconds ? `${Math.floor(process.uptime_seconds / 60)} min` : "Not running")}
+        </div>
         <div class="actions">
           <button class="primary" ${running || busy || portBlocked ? "disabled" : ""} onclick="serverAction('start')">Start Server</button>
           <button class="warning" ${running ? "" : "disabled"} onclick="serverAction('stop')">Stop</button>
@@ -236,7 +244,7 @@ function renderDashboard() {
     </div>
     ${portResolutionCard(portCheck, server.status)}
     ${operationCard(server.operation)}
-    <div class="card-grid" style="margin-top:18px">
+    <div class="card-grid dashboard-grid" style="margin-top:18px">
       <div class="card"><h3>Local Address</h3><p>${dash.local_address}</p><p class="muted">Use this for people on your Wi-Fi.</p></div>
       <div class="card"><h3>Public IP</h3><p>${dash.public_ip || "Unknown"}</p><p class="muted">Router forwarding is needed for friends outside.</p></div>
       <div class="card"><h3>Process</h3><p>${process.memory_mb ? `${process.memory_mb} MB RAM` : "No process info yet"}</p><p class="muted">Player count is planned for a later query/RCON pass.</p></div>
